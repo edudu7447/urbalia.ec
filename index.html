@@ -280,9 +280,9 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
 .foto-item button{position:absolute;top:-6px;right:-6px;background:#dc2626;color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:.6rem;cursor:pointer;display:flex;align-items:center;justify-content:center}
 
 /* ── PARALLAX FUNDADOR ── */
-.parallax-section{position:relative;min-height:460px;background:linear-gradient(135deg,#0d1428 0%,#1a2a5e 50%,#0d1428 100%);display:flex;align-items:center;overflow:hidden}
+.parallax-section{position:relative;min-height:460px;background-image:url('https://ykohqoqamysunuhoiwcq.supabase.co/storage/v1/object/public/propiedades/eduardo_fundador.jpg');background-size:cover;background-position:center top;background-attachment:fixed;display:flex;align-items:center;overflow:hidden}
 .parallax-section::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c9a84c' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
-.parallax-overlay{position:absolute;inset:0;background:linear-gradient(90deg,rgba(10,15,40,0.95) 0%,rgba(10,15,40,0.7) 100%)}
+.parallax-overlay{position:absolute;inset:0;background:linear-gradient(90deg,rgba(10,15,40,0.88) 0%,rgba(10,15,40,0.55) 60%,rgba(10,15,40,0.2) 100%)}
 .parallax-content{position:relative;z-index:2;max-width:1100px;margin:0 auto;padding:4rem 2rem;display:flex;align-items:center;gap:3rem;width:100%}
 .parallax-avatar{flex-shrink:0;width:160px;height:160px;border-radius:50%;border:4px solid #c9a84c;object-fit:cover;object-position:center top;box-shadow:0 0 40px rgba(201,168,76,0.4),0 0 80px rgba(201,168,76,0.15)}
 .parallax-text{flex:1;color:#fff}
@@ -470,7 +470,7 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
   <section class="parallax-section" id="fundador">
     <div class="parallax-overlay"></div>
     <div class="parallax-content">
-      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='100' fill='%231E2D6F'/%3E%3Ccircle cx='100' cy='75' r='38' fill='%23c9a84c'/%3E%3Cellipse cx='100' cy='165' rx='58' ry='42' fill='%23c9a84c'/%3E%3C/svg%3E" alt="Eduardo Guamán" class="parallax-avatar" id="fotoFundador"/>
+      <img src="https://ykohqoqamysunuhoiwcq.supabase.co/storage/v1/object/public/propiedades/eduardo_fundador.jpg" alt="Eduardo Guamán" class="parallax-avatar" id="fotoFundador"/>
       <div class="parallax-text">
         <div class="p-tag">✦ Fundador &amp; Visionario</div>
         <h2>Eduardo <span>Guamán</span></h2>
@@ -705,7 +705,16 @@ function updateStats(){
     document.getElementById('heroMeta').innerHTML=meta;
     const hfi=document.getElementById('heroFeatImg');
     const hImgs=[p.image,...(p.images||[])].filter(Boolean);
-    if(hfi&&hImgs.length){hfi.style.display='block';hfi.innerHTML='<img src="'+hImgs[0]+'" style="width:100%;height:100%;object-fit:cover;object-position:center;" onerror="this.parentElement.style.display='none'" loading="lazy"/>';}
+    if(hfi&&hImgs.length){
+      const hi=document.createElement('img');
+      hi.src=hImgs[0];
+      hi.style.cssText='width:100%;height:100%;object-fit:cover;object-position:center top';
+      hi.onerror=function(){hfi.style.display='none';};
+      hi.loading='lazy';
+      hfi.innerHTML='';
+      hfi.style.display='block';
+      hfi.appendChild(hi);
+    }
   } else {
     document.getElementById('heroPrice').textContent='Consultar';
     document.getElementById('heroDesc').textContent='Propiedades en Riobamba y Chimborazo';
