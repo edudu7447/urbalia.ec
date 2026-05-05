@@ -1178,6 +1178,8 @@ async function saveContacto(){
     dir:document.getElementById('c_dir').value.trim()
   };
   localStorage.setItem('urbalia_contacto', JSON.stringify(data));
+  localStorage.setItem('urbalia_conta_bak', JSON.stringify(data));
+  window.urbContacto = data;
   localStorage.setItem('urbalia_contacto', JSON.stringify(data));
   const ok = await dbSaveConfig('contacto', JSON.stringify(data));
   // Apply immediately AND after short delay to ensure DOM is ready
@@ -1191,15 +1193,35 @@ async function saveContacto(){
 
 function applyContacto(data){
   if(!data) return;
-  console.log('[Urbalia] applyContacto:', data);
-  document.getElementById('waBtn').href=`https://wa.me/${data.wa}`;
-  document.getElementById('footerWeb').textContent=`${data.web} · ${data.email}`;
-  const links=document.querySelectorAll('.contact-link');
-  if(links[0])links[0].href=`https://wa.me/${data.wa}`;
-  if(links[1])links[1].href=`mailto:${data.email}`;
-  // update visible text in contact links
-  if(links[0])links[0].textContent='WhatsApp '+data.wa;
-  if(links[1])links[1].textContent=data.email;
+  const wa    = (data.wa||'').toString().replace(/\D/g,'');
+  const email = data.email||'';
+  const dir   = data.dir||'';
+  const webRaw= data.web||'';
+  const webUrl= webRaw.startsWith('http') ? webRaw : 'https://'+webRaw;
+
+  // Botón flotante WA
+  const waBtn = document.getElementById('waBtn');
+  if(waBtn) waBtn.href = 'https://wa.me/'+wa;
+
+  // Footer
+  const fwEl = document.getElementById('footerWeb');
+  if(fwEl) fwEl.textContent = webRaw+' · '+email;
+
+  // Contacto: WA
+  const cLinkWA = document.getElementById('cLinkWA');
+  if(cLinkWA){ cLinkWA.href='https://wa.me/'+wa; cLinkWA.textContent='📱 WhatsApp '+wa; }
+
+  // Contacto: email
+  const cLinkEmail = document.getElementById('cLinkEmail');
+  if(cLinkEmail){ cLinkEmail.href='mailto:'+email; cLinkEmail.textContent='✉️ '+email; }
+
+  // Contacto: dirección
+  const cLinkDir = document.getElementById('cLinkDir');
+  if(cLinkDir) cLinkDir.textContent = '📍 '+dir;
+
+  // Contacto: web
+  const cLinkWeb = document.getElementById('cLinkWeb');
+  if(cLinkWeb){ cLinkWeb.href=webUrl; cLinkWeb.textContent='🌐 '+webRaw; }
 }
 
 // ── CONTACT FORM ─────────────────────────────────────────────────────────
@@ -1801,10 +1823,17 @@ async function delProp(id){
 }
 
 window.addEventListener('load', ()=>{
+  // Aplicar datos de contacto desde localStorage INMEDIATAMENTE (sin esperar Supabase)
+  try {
+    const localCon = localStorage.getItem('urbalia_contacto');
+    if(localCon){ const con = JSON.parse(localCon); window.urbContacto=con; applyContacto(con); }
+  } catch(e){}
+
   loadConfig();
   setTimeout(loadFromDB, 600);
-  // Re-apply contacto after full page load to ensure contact section is in DOM
-  setTimeout(()=>{ if(window.urbContacto) applyContacto(window.urbContacto); }, 1200);
+  // Re-apply después de que Supabase cargue (por si actualizó datos)
+  setTimeout(()=>{ if(window.urbContacto) applyContacto(window.urbContacto); }, 2000);
+  setTimeout(()=>{ if(window.urbContacto) applyContacto(window.urbContacto); }, 4000);
 });
 
 /* ══════════════════════════════════════
