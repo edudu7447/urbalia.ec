@@ -732,7 +732,7 @@ body {
           <h2>¿Listo para encontrar tu propiedad?</h2>
           <p>Escríbenos y un asesor te atenderá con gusto. Respuesta rápida por WhatsApp.</p>
           <div class="contact-links">
-            <a id="cLinkWa" href="https://wa.me/593958826795" target="_blank" rel="noopener" class="contact-link">📱 WhatsApp: +593 958 826 795</a>
+            <a id="cLinkWA" href="https://wa.me/593958826795" target="_blank" rel="noopener" class="contact-link">📱 WhatsApp 593958826795</a>
             <a id="cLinkEmail" href="mailto:info@urbalia.ec" class="contact-link">✉️ info@urbalia.ec</a>
             <span id="cLinkDir" class="contact-link">📍 Riobamba, Chimborazo, Ecuador</span>
             <a id="cLinkWeb" href="https://urbalia-ec.netlify.app" target="_blank" rel="noopener" class="contact-link">🌐 urbalia-ec.netlify.app</a>
@@ -1172,7 +1172,7 @@ async function saveEmpresa(){
 async function saveContacto(){
   const rawWeb = document.getElementById('c_web').value.trim();
   const data={
-    wa:document.getElementById('c_wa').value.trim(),
+    wa:(document.getElementById('c_wa').value||'').trim().replace(/\D/g,''),
     email:document.getElementById('c_email').value.trim(),
     web:rawWeb,
     dir:document.getElementById('c_dir').value.trim()
