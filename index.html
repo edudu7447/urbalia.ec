@@ -248,8 +248,8 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
 .prop-modal-overlay.open{opacity:1;pointer-events:all}
 .prop-modal{background:white;border-radius:20px;width:100%;max-width:900px;max-height:92vh;overflow-y:auto;box-shadow:0 40px 100px rgba(10,17,46,.4);transform:translateY(30px);transition:transform .3s}
 .prop-modal-overlay.open .prop-modal{transform:translateY(0)}
-.modal-gallery{position:relative;background:#0a112e;border-radius:20px 20px 0 0;overflow:hidden;display:flex;align-items:center;justify-content:center}
-.modal-gallery img{width:100%;max-height:80vh;height:auto;object-fit:contain;display:block}
+.modal-gallery{background:#0a112e;border-radius:20px 20px 0 0;overflow:hidden;display:flex;align-items:center;justify-content:center;width:100%}
+.modal-gallery img{width:100%;max-height:75vh;height:auto;object-fit:contain;display:block}
 .modal-gallery-empty{display:flex;align-items:center;justify-content:center;font-size:4rem;height:100%}
 .modal-thumbs{display:flex;gap:.5rem;padding:.75rem 1.5rem;background:#f7f8fa;overflow-x:auto}
 .modal-thumb{width:72px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid transparent;flex-shrink:0;transition:border-color .2s}
@@ -1300,7 +1300,7 @@ function openModal(id) {
     const img = document.createElement('img');
     img.className='modal-main-img';
     img.src = allImgs[0];
-    img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover';
+    img.style.cssText='';
     gal.appendChild(img);
   } else {
     const empty = document.createElement('div');
