@@ -837,12 +837,12 @@ body {
           </div>
           <button class="btn btn-gold" style="margin-top:1rem" onclick="addVideo()">🎬 Agregar video</button>
           <div style="background:rgba(255,255,255,.07);border-radius:var(--r-sm);padding:1rem;margin-top:1rem">
-            <div style="color:var(--dorado);font-weight:700;font-size:.82rem;margin-bottom:.6rem">¿Cómo obtener el link embed?</div>
+            <div style="color:var(--dorado);font-weight:700;font-size:.82rem;margin-bottom:.6rem">✅ Formatos de URL compatibles:</div>
             <ol style="color:rgba(255,255,255,.6);font-size:.82rem;padding-left:1.2rem;line-height:1.8">
-              <li>Abre el video en YouTube</li>
-              <li>Clic en "Compartir" → "Insertar"</li>
-              <li>Copia el link que aparece en src="..."</li>
-              <li>Pégalo arriba (empieza con https://www.youtube.com/embed/)</li>
+              <li>Copia el link del video de YouTube (cualquier formato)</li>
+              <li>Funciona con: videos normales, Shorts, youtu.be</li>
+              <li>Puedes pegar varios links separados por comas o líneas</li>
+              <li>Ejemplos: youtube.com/watch?v=... · youtu.be/... · youtube.com/shorts/...</li>
             </ol>
           </div>
         </div>
@@ -1135,21 +1135,52 @@ function previewFotos(e){
 function removeFoto(btn){btn.parentElement.remove();toast('Foto eliminada.');}
 
 // ── VIDEO ────────────────────────────────────────────────────────────────
-async function addVideo(){
-  let url=document.getElementById('ytUrl').value.trim();
-  const pid=parseInt(document.getElementById('ytProp').value);
-  if(!url){toast('⚠️ Ingresa una URL de YouTube','error');return;}
-  url=url.replace('watch?v=','embed/').replace('youtu.be/','www.youtube.com/embed/');
-  if(!url.includes('embed')){toast('⚠️ Usa un link embed de YouTube','error');return;}
-  const p=props.find(x=>x.id===pid);
-  if(p){
-    toast('⏳ Guardando video...','');
-    const ok=await dbUpdate(pid,{video:url});
-    p.video=url;
-    renderMedia(props);renderAdminList();
-    toast(ok?'🎬 Video guardado en base de datos.':'🎬 Video actualizado (sin conexión DB).','success');
-    document.getElementById('ytUrl').value='';
+async async function addVideo(){
+  const rawUrl = document.getElementById('ytUrl').value.trim();
+  const pid    = parseInt(document.getElementById('ytProp').value);
+  if(!rawUrl){ toast('⚠️ Ingresa una URL de YouTube','error'); return; }
+
+  // ── Parser universal YouTube ──
+  function toEmbedObj(u){
+    u = (u||'').trim();
+    // ya es embed
+    if(u.indexOf('youtube.com/embed/')>-1) return {embed:u, isShort:false};
+    // Shorts: youtube.com/shorts/ID  o  youtu.be/ID con /shorts
+    var mShort = u.match(/shorts\/([A-Za-z0-9_-]{6,15})/);
+    if(mShort) return {embed:'https://www.youtube.com/embed/'+mShort[1], isShort:true};
+    // watch?v=ID
+    var mWatch = u.match(/(?:watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    if(mWatch) return {embed:'https://www.youtube.com/embed/'+mWatch[1], isShort:false};
+    return null;
   }
+
+  // Soporta múltiples URLs separadas por salto de línea o coma
+  const lines = rawUrl.split(/[\n,]+/).map(l=>l.trim()).filter(Boolean);
+  const parsed = lines.map(toEmbedObj).filter(Boolean);
+
+  if(!parsed.length){
+    toast('⚠️ No se reconoció la URL. Pega el link de YouTube (cualquier formato)','error');
+    return;
+  }
+
+  const p = props.find(x=>x.id===pid);
+  if(!p){ toast('⚠️ Selecciona una propiedad','error'); return; }
+
+  // Combinar con videos existentes
+  let existing = [];
+  if(p.video){
+    try { existing = JSON.parse(p.video); if(!Array.isArray(existing)) existing=[]; }
+    catch(e){ existing=[]; }
+  }
+  const merged = [...existing, ...parsed];
+  const videoJson = JSON.stringify(merged);
+
+  toast('⏳ Guardando video...','');
+  const ok = await dbUpdate(pid, {video: videoJson});
+  p.video = videoJson;
+  renderMedia(props); renderAdminList();
+  toast(ok ? '🎬 Video guardado correctamente.' : '🎬 Video guardado (sin conexión DB).','success');
+  document.getElementById('ytUrl').value = '';
 }
 
 // ── EMPRESA ──────────────────────────────────────────────────────────────
