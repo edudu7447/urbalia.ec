@@ -102,7 +102,7 @@ h1{font-size:clamp(2.3rem,4.5vw,4.5rem);font-weight:900;margin-bottom:1rem;color
 .prop-card{background:var(--blanco);border-radius:var(--r);box-shadow:var(--sombra);overflow:hidden;border:1px solid rgba(30,45,111,.07);transition:transform var(--t),box-shadow var(--t);display:flex;flex-direction:column}
 .prop-card:hover{transform:translateY(-4px);box-shadow:var(--sombra-lg)}
 .prop-img{aspect-ratio:16/10;position:relative;overflow:hidden;background:linear-gradient(135deg,var(--azul-claro),#d0daff);display:flex;align-items:center;justify-content:center;font-size:2.8rem}
-.prop-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.prop-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#EBF0FB}
 .prop-tag{position:absolute;top:.7rem;left:.7rem;background:var(--dorado);color:var(--azul);padding:.28rem .75rem;border-radius:var(--r-full);font-size:.7rem;font-weight:800}
 .prop-body{padding:1.2rem;flex:1;display:flex;flex-direction:column}
 .prop-price{font-size:1.55rem;font-weight:900;color:var(--azul);margin-bottom:.25rem}
@@ -248,8 +248,8 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
 .prop-modal-overlay.open{opacity:1;pointer-events:all}
 .prop-modal{background:white;border-radius:20px;width:100%;max-width:900px;max-height:90vh;overflow-y:auto;box-shadow:0 40px 100px rgba(10,17,46,.4);transform:translateY(30px);transition:transform .3s}
 .prop-modal-overlay.open .prop-modal{transform:translateY(0)}
-.modal-gallery{position:relative;background:#0a112e;border-radius:20px 20px 0 0;overflow:hidden;aspect-ratio:16/7}
-.modal-gallery img{width:100%;height:100%;object-fit:cover}
+.modal-gallery{position:relative;background:#0a112e;border-radius:20px 20px 0 0;overflow:hidden;min-height:320px;max-height:70vh;display:flex;align-items:center;justify-content:center}
+.modal-gallery img{max-width:100%;max-height:70vh;width:auto;height:auto;object-fit:contain;display:block;margin:auto}
 .modal-gallery-empty{display:flex;align-items:center;justify-content:center;font-size:4rem;height:100%}
 .modal-thumbs{display:flex;gap:.5rem;padding:.75rem 1.5rem;background:#f7f8fa;overflow-x:auto}
 .modal-thumb{width:72px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid transparent;flex-shrink:0;transition:border-color .2s}
@@ -576,7 +576,7 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
           <h2>¿Listo para encontrar tu propiedad?</h2>
           <p>Escríbenos y un asesor te atenderá con gusto. Respuesta rápida por WhatsApp.</p>
           <div class="contact-links">
-            <a id="cLinkWA" href="https://wa.me/593958826795" target="_blank" rel="noopener" class="contact-link">📱 WhatsApp 593958826795</a>
+            <a id="cLinkWa" href="https://wa.me/593958826795" target="_blank" rel="noopener" class="contact-link">📱 WhatsApp: +593 958 826 795</a>
             <a id="cLinkEmail" href="mailto:info@urbalia.ec" class="contact-link">✉️ info@urbalia.ec</a>
             <span id="cLinkDir" class="contact-link">📍 Riobamba, Chimborazo, Ecuador</span>
             <a id="cLinkWeb" href="https://urbalia-ec.netlify.app" target="_blank" rel="noopener" class="contact-link">🌐 urbalia-ec.netlify.app</a>
@@ -788,7 +788,6 @@ function updateStats(){
     document.getElementById('heroDesc').textContent=p.title+' · '+p.location;
     const meta=[p.beds>0?'🛏 '+p.beds+' hab.':'',p.baths>0?'🚿 '+p.baths+' baños':'',p.area>0?'📐 '+p.area+' m²':''].filter(Boolean).map(m=>'<span>'+m+'</span>').join('');
     document.getElementById('heroMeta').innerHTML=meta;
-    // Foto propiedad destacada
     const allImgsH=[p.image,...(p.images||[])].filter(Boolean);
     const hImg=document.getElementById('heroCardImg');
     const hWrap=document.getElementById('heroCardImgWrap');
@@ -834,22 +833,9 @@ function renderProps(list){
   document.getElementById('propGrid').innerHTML=list.length?list.map(propCard).join(''):'<div class="empty-msg">🔍 No se encontraron propiedades.</div>';
 }
 function renderMedia(list){
-  function getFirstEmbed(v){
-    if(!v) return null;
-    try{ var arr=JSON.parse(v); if(Array.isArray(arr)&&arr.length) return arr[0].embed||null; }catch(e){}
-    if(v.indexOf("youtube.com/embed/")>-1) return v;
-    var ms=v.match(/shorts\/([A-Za-z0-9_-]{6,15})/);
-    if(ms) return "https://www.youtube.com/embed/"+ms[1];
-    var mw=v.match(/(?:watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
-    if(mw) return "https://www.youtube.com/embed/"+mw[1];
-    return null;
-  }
-  var wv=list.filter(function(p){ return getFirstEmbed(p.video); });
-  document.getElementById("mediaGrid").innerHTML=wv.length
-    ?wv.map(function(p){
-        var emb=getFirstEmbed(p.video);
-        return '<article class="media-card"><h3>'+p.title+'</h3><p>📍 '+p.location+'</p><iframe class="media-frame" src="'+emb+'" title="'+p.title+'" allowfullscreen loading="lazy"></iframe></article>';
-      }).join("")
+  const wv=list.filter(p=>p.video);
+  document.getElementById('mediaGrid').innerHTML=wv.length
+    ?wv.map(p=>`<article class="media-card"><h3>${p.title}</h3><p>📍 ${p.location}</p><iframe class="media-frame" src="${p.video}" title="${p.title}" allowfullscreen loading="lazy"></iframe></article>`).join('')
     :'<div class="empty-msg" style="grid-column:1/-1">🎬 Agrega un video YouTube a cualquier propiedad para verlo aquí.</div>';
 }
 function renderAdminList(){
@@ -1008,6 +994,7 @@ async function saveContacto(){
     dir:document.getElementById('c_dir').value.trim()
   };
   localStorage.setItem('urbalia_contacto', JSON.stringify(data));
+  localStorage.setItem('urbalia_contacto', JSON.stringify(data));
   const ok = await dbSaveConfig('contacto', JSON.stringify(data));
   // Apply immediately AND after short delay to ensure DOM is ready
   window.urbContacto=data;
@@ -1020,25 +1007,16 @@ async function saveContacto(){
 
 function applyContacto(data){
   if(!data) return;
-  var wa=(data.wa||"").toString().replace(/\D/g,"");
-  var email=data.email||"";
-  var dir=data.dir||"";
-  var webRaw=data.web||"";
-  var webUrl=webRaw.startsWith("http")?webRaw:"https://"+webRaw;
-  var waBtn=document.getElementById("waBtn");
-  if(waBtn) waBtn.href="https://wa.me/"+wa;
-  var fwEl=document.getElementById("footerWeb");
-  if(fwEl) fwEl.textContent=webRaw+" · "+email;
-  var elWA=document.getElementById("cLinkWA");
-  var elEm=document.getElementById("cLinkEmail");
-  var elDir=document.getElementById("cLinkDir");
-  var elWeb=document.getElementById("cLinkWeb");
-  if(elWA){ elWA.href="https://wa.me/"+wa; elWA.textContent="📱 WhatsApp "+wa; }
-  if(elEm){ elEm.href="mailto:"+email; elEm.textContent="✉️ "+email; }
-  if(elDir){ elDir.textContent="📍 "+dir; }
-  if(elWeb){ elWeb.href=webUrl; elWeb.textContent="🌐 "+webRaw; }
+  console.log('[Urbalia] applyContacto:', data);
+  document.getElementById('waBtn').href=`https://wa.me/${data.wa}`;
+  document.getElementById('footerWeb').textContent=`${data.web} · ${data.email}`;
+  const links=document.querySelectorAll('.contact-link');
+  if(links[0])links[0].href=`https://wa.me/${data.wa}`;
+  if(links[1])links[1].href=`mailto:${data.email}`;
+  // update visible text in contact links
+  if(links[0])links[0].textContent='WhatsApp '+data.wa;
+  if(links[1])links[1].textContent=data.email;
 }
-
 
 // ── CONTACT FORM ─────────────────────────────────────────────────────────
 document.getElementById('contactForm').addEventListener('submit',e=>{
@@ -1322,6 +1300,17 @@ function openModal(id) {
   // Nav arrows
   document.getElementById('modalPrev').style.display = allImgs.length>1?'block':'none';
   document.getElementById('modalNext').style.display = allImgs.length>1?'block':'none';
+  const existVideo = document.getElementById('modalVideoSection');
+  if(existVideo) existVideo.remove();
+  if(p.video){
+    const vs = document.createElement('div');
+    vs.id = 'modalVideoSection';
+    vs.style.cssText = 'padding:.5rem 1.5rem .75rem;background:#f7f8fa;border-bottom:1px solid rgba(30,45,111,.07)';
+    vs.innerHTML = '<div style="font-weight:700;color:#1E2D6F;font-size:.82rem;margin-bottom:.4rem">🎬 VIDEO DE LA PROPIEDAD</div><iframe src="'+p.video+'" style="width:100%;aspect-ratio:16/9;border:none;border-radius:10px" allowfullscreen loading="lazy"></iframe>';
+    const modalBox = document.getElementById('propModalBox');
+    const modalBody = modalBox.querySelector('.modal-body');
+    modalBox.insertBefore(vs, modalBody);
+  }
 
   // Info
   document.getElementById('modalPrice').textContent = p.price;
@@ -1519,7 +1508,6 @@ async function delProp(id){
 }
 
 window.addEventListener('load', ()=>{
-  try{var lc=localStorage.getItem('urbalia_contacto');if(lc){var ld=JSON.parse(lc);window.urbContacto=ld;applyContacto(ld);}}catch(e){}
   loadConfig();
   setTimeout(loadFromDB, 600);
   // Re-apply contacto after full page load to ensure contact section is in DOM
