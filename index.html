@@ -432,7 +432,7 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
       </ul>
     </div>
     <div class="hero-card">
-      <div id="heroCardImgWrap" style="width:100%;aspect-ratio:16/10;border-radius:14px;overflow:hidden;margin-bottom:.9rem;background:rgba(255,255,255,.08);display:none"><img id="heroCardImg" src="" alt="" style="width:100%;height:100%;object-fit:cover"/></div><div class="hc-badge">🏠 PROPIEDAD DESTACADA</div>
+      <div id="heroCardImgWrap" style="width:100%;border-radius:14px;overflow:hidden;margin-bottom:.9rem;background:rgba(255,255,255,.08);display:none"><img id="heroCardImg" src="" alt="" style="width:100%;height:auto;max-height:340px;object-fit:contain;display:block"/></div><div class="hc-badge">🏠 PROPIEDAD DESTACADA</div>
       <div class="hc-price" id="heroPrice">Cargando...</div>
       <p class="hc-desc" id="heroDesc">Propiedades en Riobamba y Chimborazo</p>
       <div class="hc-meta" id="heroMeta"></div>
@@ -725,12 +725,29 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
 <!-- MODAL PROPIEDAD -->
 <div class="prop-modal-overlay" id="propModal" onclick="if(event.target===this)closeModal()">
   <div class="prop-modal" id="propModalBox">
+    <div class="modal-media-tabs" id="modalMediaTabs" style="display:none">
+      <button class="media-tab active" id="tabFotos" onclick="switchMediaTab('fotos')">📸 Fotos</button>
+      <button class="media-tab" id="tabVideos" onclick="switchMediaTab('videos')">🎬 Videos</button>
+    </div>
+    <div class="media-panel active" id="panelFotos">
     <div class="modal-gallery" id="modalGallery">
       <button class="modal-close" onclick="closeModal()">✕</button>
       <button class="modal-nav prev" id="modalPrev" onclick="modalNav(-1)">‹</button>
       <button class="modal-nav next" id="modalNext" onclick="modalNav(1)">›</button>
     </div>
     <div class="modal-thumbs" id="modalThumbs"></div>
+    </div><!-- /panelFotos -->
+    <div class="media-panel" id="panelVideos">
+      <div class="video-wrapper horizontal" id="videoWrapper">
+        <iframe id="modalIframe" src="" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe>
+      </div>
+      <div class="video-nav" id="videoNav" style="display:none">
+        <button onclick="videoNavGo(-1)">‹</button>
+        <span id="videoCounter">1 / 1</span>
+        <button onclick="videoNavGo(1)">›</button>
+      </div>
+      <div class="video-dots" id="videoDots"></div>
+    </div><!-- /panelVideos -->
     <div class="modal-body">
       <div class="modal-header">
         <div>
@@ -1302,7 +1319,29 @@ function openModal(id) {
   const allImgs = [p.image,...(p.images||[])].filter(Boolean);
   modalImgs = allImgs; modalIdx = 0;
 
-  // Gallery
+  // ── Parse videos (new JSON array OR old single string) ──
+  let modalVideos = [];
+  if(p.video){
+    try {
+      const parsed = JSON.parse(p.video);
+      if(Array.isArray(parsed)) modalVideos = parsed;
+      else modalVideos = [{embed:p.video, isShort:false}];
+    } catch(e){
+      // old format: single URL string
+      const m = p.video.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+      const isShort = /shorts\//.test(p.video);
+      if(m) modalVideos = [{embed:'https://www.youtube.com/embed/'+m[1], isShort}];
+      else if(p.video.indexOf('youtube.com/embed/')>-1) modalVideos = [{embed:p.video, isShort:false}];
+    }
+  }
+  window._modalVideos = modalVideos;
+  window._modalVideoIdx = 0;
+
+  // ── Show/hide tabs ──
+  const tabsEl = document.getElementById('modalMediaTabs');
+  if(tabsEl) tabsEl.style.display = (allImgs.length>0 && modalVideos.length>0) ? 'flex' : 'none';
+
+  // ── Gallery (fotos) ──
   const gal = document.getElementById('modalGallery');
   const existImg = gal.querySelector('.modal-main-img');
   if(existImg) existImg.remove();
@@ -1310,22 +1349,26 @@ function openModal(id) {
     const img = document.createElement('img');
     img.className='modal-main-img';
     img.src = allImgs[0];
-    img.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover';
+    img.style.cssText='max-width:100%;max-height:65vh;width:auto;height:auto;object-fit:contain;display:block;margin:0 auto';
     gal.appendChild(img);
   } else {
-    const empty = document.createElement('div');
-    empty.className='modal-gallery-empty'; empty.textContent='🏠';
-    gal.appendChild(empty);
+    // No photos — jump straight to videos tab if available
+    if(modalVideos.length){ switchMediaTab('videos'); }
+    else { const e=document.createElement('div'); e.className='modal-gallery-empty'; e.textContent='🏠'; gal.appendChild(e); }
   }
 
   // Thumbs
   const thumbs = document.getElementById('modalThumbs');
   thumbs.innerHTML = allImgs.map((u,i)=>'<img class="modal-thumb'+(i===0?' active':'')+'" src="'+u+'" onclick="modalGoTo('+i+')" />').join('');
   thumbs.style.display = allImgs.length>1?'flex':'none';
-
-  // Nav arrows
   document.getElementById('modalPrev').style.display = allImgs.length>1?'block':'none';
   document.getElementById('modalNext').style.display = allImgs.length>1?'block':'none';
+
+  // ── Videos ──
+  renderModalVideo(0);
+
+  // ── Switch to fotos tab by default ──
+  switchMediaTab(allImgs.length ? 'fotos' : 'videos');
 
   // Info
   document.getElementById('modalPrice').textContent = p.price;
@@ -1350,6 +1393,215 @@ function closeModal(){
   document.getElementById('propModal').classList.remove('open');
   document.body.style.overflow='';
 }
+
+function switchMediaTab(tab){
+  const pF = document.getElementById('panelFotos');
+  const pV = document.getElementById('panelVideos');
+  const tF = document.getElementById('tabFotos');
+  const tV = document.getElementById('tabVideos');
+  if(!pF || !pV) return;
+  if(tab === 'videos'){
+    pF.classList.remove('active'); pV.classList.add('active');
+    if(tF) tF.classList.remove('active');
+    if(tV) tV.classList.add('active');
+    renderModalVideo(window._modalVideoIdx || 0);
+  } else {
+    pV.classList.remove('active'); pF.classList.add('active');
+    if(tV) tV.classList.remove('active');
+    if(tF) tF.classList.add('active');
+    // Pause video when switching away
+    const iframe = document.getElementById('modalIframe');
+    if(iframe) iframe.src = iframe.src;
+  }
+}
+
+function renderModalVideo(idx){
+  const videos = window._modalVideos || [];
+  if(!videos.length) return;
+  const v = videos[idx];
+  const wrapper = document.getElementById('videoWrapper');
+  const iframe  = document.getElementById('modalIframe');
+  if(!wrapper || !iframe) return;
+
+  // Set aspect ratio based on type
+  wrapper.className = 'video-wrapper ' + (v.isShort ? 'vertical' : 'horizontal');
+  // Add autoplay + mute for smooth experience
+  iframe.src = v.embed + '?autoplay=0&rel=0';
+
+  // Nav controls
+  const nav  = document.getElementById('videoNav');
+  const dots = document.getElementById('videoDots');
+  const ctr  = document.getElementById('videoCounter');
+  if(nav)  nav.style.display  = videos.length > 1 ? 'flex' : 'none';
+  if(ctr)  ctr.textContent = (idx+1) + ' / ' + videos.length;
+
+  // Dots
+  if(dots){
+    dots.innerHTML = videos.map((_,i)=>'<div class="video-dot'+(i===idx?' active':'')+'" onclick="videoNavGo('+(i-idx)+')"></div>').join('');
+  }
+  window._modalVideoIdx = idx;
+}
+
+function videoNavGo(dir){
+  const videos = window._modalVideos || [];
+  if(!videos.length) return;
+  const next = (window._modalVideoIdx + dir + videos.length) % videos.length;
+  // Stop current iframe before switching
+  const iframe = document.getElementById('modalIframe');
+  if(iframe) iframe.src = '';
+  renderModalVideo(next);
+}
+
+function modalGoTo(i){
+  modalIdx=i;
+  const gal=document.getElementById('modalGallery');
+  const img=gal.querySelector('.modal-main-img');
+  if(img) img.src=modalImgs[i];
+  document.querySelectorAll('.modal-thumb').forEach((t,j)=>t.classList.toggle('active',j===i));
+}
+
+function modalNav(dir){
+  const next=(modalIdx+dir+modalImgs.length)%modalImgs.length;
+  modalGoTo(next);
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
+
+window.addProp = async function() {
+  const title=g('f_title'), location=g('f_location'), price=g('f_price');
+  if (!title||!location||!price) { toast('⚠️ Completa título, ubicación y precio.','error'); return; }
+  toast('⏳ Guardando en base de datos...','');
+  const extraRaw = document.getElementById('f_images_extra').value;
+  const images = extraRaw ? JSON.parse(extraRaw) : [];
+  const p = {
+    id:Date.now(), title, location, price,
+    beds:parseInt(g('f_beds'))||0, baths:parseInt(g('f_baths'))||0,
+    area:parseInt(g('f_area'))||0,
+    features:g('f_features').split(',').map(s=>s.trim()).filter(Boolean),
+    image:g('f_image'), images, video:g('f_video'), type:g('f_type')
+  };
+  const saved = await dbInsert(p);
+  if (saved) {
+    p.id = saved.id;
+    toast('✅ ¡Propiedad guardada permanentemente!','success');
+  } else {
+    toast('⚠️ No se pudo guardar en DB. Verifica conexión.','error');
+  }
+  props.unshift(p);
+  ['f_title','f_location','f_price','f_beds','f_baths','f_area','f_features','f_image','f_video','f_images_extra']
+    .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('fotoPreviewProp').innerHTML='';
+  renderProps(props); renderMedia(props); renderAdminList();
+  document.getElementById('propiedades').scrollIntoView({behavior:'smooth'});
+};
+
+// Eliminar propiedad
+window.delProp = async function(id) {
+  if (!confirm('¿Eliminar esta propiedad?')) return;
+  await dbDelete(id);
+  props = props.filter(p=>p.id!==id);
+  renderProps(props); renderMedia(props); renderAdminList();
+  toast('🗑️ Propiedad eliminada.','');
+};
+
+async function loadConfig(){
+  const cfg = await dbGetAllConfig();
+
+  const empRaw = cfg['empresa'] || localStorage.getItem('urbalia_empresa');
+  const emp = empRaw ? (typeof empRaw==='string' ? JSON.parse(empRaw) : empRaw) : null;
+  if(emp){
+    if(document.getElementById('e_nombre')) document.getElementById('e_nombre').value=emp.nombre||'';
+    if(document.getElementById('e_ciudad')) document.getElementById('e_ciudad').value=emp.ciudad||'';
+    if(document.getElementById('e_provincia')) document.getElementById('e_provincia').value=emp.provincia||'';
+    if(document.getElementById('e_pais')) document.getElementById('e_pais').value=emp.pais||'';
+    if(document.getElementById('e_ruc')) document.getElementById('e_ruc').value=emp.ruc||'';
+    if(document.getElementById('e_desc')) document.getElementById('e_desc').value=emp.desc||'';
+    const fd=document.getElementById('footerDir');
+    if(fd) fd.textContent='RUC: '+(emp.ruc||'')+' · '+(emp.ciudad||'')+', Ecuador';
+  }
+
+  const conRaw = cfg['contacto'] || localStorage.getItem('urbalia_contacto');
+  const con = conRaw ? (typeof conRaw==='string' ? JSON.parse(conRaw) : conRaw) : null;
+  if(con){
+    window.urbContacto = con;
+    if(document.getElementById('c_wa')) document.getElementById('c_wa').value=con.wa||'';
+    if(document.getElementById('c_email')) document.getElementById('c_email').value=con.email||'';
+    if(document.getElementById('c_web')) document.getElementById('c_web').value=con.web||'';
+    if(document.getElementById('c_dir')) document.getElementById('c_dir').value=con.dir||'';
+    applyContacto(con);
+  }
+}
+
+
+
+// ── EDIT STATE ──────────────────────────────────────────────────────────────
+let editingPropId = null;
+
+// ── ADD / UPDATE PROPIEDAD ───────────────────────────────────────────────────
+async function addProp(){
+  const title    = document.getElementById('f_title').value.trim();
+  const location = document.getElementById('f_location').value.trim();
+  const price    = document.getElementById('f_price').value.trim();
+  const beds     = document.getElementById('f_beds').value.trim();
+  const baths    = document.getElementById('f_baths').value.trim();
+  const area     = document.getElementById('f_area').value.trim();
+  const image    = document.getElementById('f_image').value.trim();
+  const features = document.getElementById('f_features').value.trim();
+  const videoRaw = (document.getElementById('f_video').value||'').trim();
+  const type     = document.getElementById('f_type') ? document.getElementById('f_type').value : 'En venta';
+
+  if(!title || !location || !price){ toast('Completa título, ubicación y precio'); return; }
+
+  function parseOneYT(url){
+    url=(url||'').trim();
+    if(!url) return null;
+    var isShort=/shorts\//.test(url);
+    var m=url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    if(m) return {embed:'https://www.youtube.com/embed/'+m[1],isShort:isShort};
+    if(url.indexOf('youtube.com/embed/')>-1) return {embed:url,isShort:false};
+    return null;
+  }
+  var videoLines=(videoRaw||'').split('\n').map(function(l){return l.trim();}).filter(Boolean);
+  var videosParsed=videoLines.map(parseOneYT).filter(Boolean);
+  var videoClean=videosParsed.length?JSON.stringify(videosParsed):'';
+  // Preserve existing images when editing
+  const existingImages = (editingPropId !== null)
+    ? (props.find(p=>p.id===editingPropId)||{}).images || []
+    : [];
+  const data = { title, location, price, beds:parseInt(beds)||0, baths:parseInt(baths)||0, area:parseFloat(area)||0,
+                 features, image, images:existingImages, video:videoClean, type };
+
+  if(editingPropId !== null){
+    // UPDATE existing
+    const ok = await dbUpdate(editingPropId, data);
+    if(ok){
+      const idx = props.findIndex(p=>p.id===editingPropId);
+      if(idx !== -1) props[idx] = {...props[idx], ...data};
+      editingPropId = null;
+      document.getElementById('f_addBtn').textContent = '➕ Agregar propiedad';
+      document.getElementById('f_addBtn').style.background = '';
+      toast('✅ Propiedad actualizada');
+    } else { toast('❌ Error al actualizar'); return; }
+  } else {
+    // INSERT new
+    const saved = await dbInsert(data);
+    if(saved){ props.unshift(saved); toast('✅ Propiedad agregada'); }
+    else { toast('❌ Error al guardar'); return; }
+  }
+
+  // Reset form
+  ['f_title','f_location','f_price','f_beds','f_baths','f_area',
+   'f_image','f_features','f_video'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  renderProps(props);
+  renderAdminList();
+  updateStats();
+  if(typeof updateMapStats==="function") updateMapStats();
+}
+
+// ── EDIT PROPIEDAD ───────────────────────────────────────────────────────────
 
 function modalGoTo(i){
   modalIdx=i;
