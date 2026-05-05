@@ -1136,12 +1136,15 @@ const CANTONES=[
     features:["🌋 Vista al volcán Tungurahua","🏔️ Turismo de aventura","🏡 Cabañas y fincas","🌄 Paisajes únicos"]},
   {name:"Cumandá",lat:-2.1964,lng:-79.1428,props:0,clientes:0,principal:false,
     desc:"Cantón subtropical al sur de Chimborazo. Alta producción agrícola y demanda de terrenos para cultivo.",
-    features:["🌴 Zona subtropical","🌾 Producción agrícola","🏡 Fincas y quintas","💰 Inversión agropecuaria"]}
+    features:["🌴 Zona subtropical","🌾 Producción agrícola","🏡 Fincas y quintas","💰 Inversión agropecuaria"]},
+  {name:"Girón",lat:-3.1572,lng:-79.1506,props:0,clientes:0,principal:false,
+    desc:"Cantón del Azuay, provincia de Cuenca. Valle tranquilo con propiedades rurales, terrenos y casas de campo con excelente plusvalía.",
+    features:["🏡 Terrenos y casas de campo","🌄 Paisajes naturales del Azuay","📈 Plusvalía en crecimiento","🌿 Zona rural y tranquila","📍 Cercano a Cuenca"]}
 ];
 
 const mapMarkers=[];
 function initMap(){
-  const map=L.map('mapaZona',{center:[-1.8000,-78.7200],zoom:9,scrollWheelZoom:false});
+  const map=L.map('mapaZona',{center:[-2.3000,-78.9000],zoom:8,scrollWheelZoom:false});
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
     attribution:'&copy; CARTO',subdomains:'abcd',maxZoom:19
   }).addTo(map);
@@ -1513,8 +1516,18 @@ async function addProp(){
 
   if(!title || !location || !price){ toast('Completa título, ubicación y precio'); return; }
 
-  const data = { title, location, price, beds, baths, area,
-                 features, image, images:[], video, type };
+  // YouTube: auto-convert any YT format to embed
+  let videoClean = video;
+  if(video){
+    const ytMatch = video.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    if(ytMatch) videoClean = 'https://www.youtube.com/embed/' + ytMatch[1];
+  }
+  // Preserve existing images when editing
+  const existingImages = (editingPropId !== null)
+    ? (props.find(p=>p.id===editingPropId)||{}).images || []
+    : [];
+  const data = { title, location, price, beds:parseInt(beds)||0, baths:parseInt(baths)||0, area:parseFloat(area)||0,
+                 features, image, images:existingImages, video:videoClean, type };
 
   if(editingPropId !== null){
     // UPDATE existing
@@ -1539,8 +1552,10 @@ async function addProp(){
    'f_image','f_features','f_video'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
-  renderProps();
+  renderProps(props);
   renderAdminList();
+  updateStats();
+  if(typeof updateMapStats==="function") updateMapStats();
 }
 
 // ── EDIT PROPIEDAD ───────────────────────────────────────────────────────────
