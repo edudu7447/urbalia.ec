@@ -764,6 +764,7 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+
 // ── TOAST ─────────────────────────────────────────────────────────────────
 function toast(msg,type=''){
   const t=document.getElementById('toast');
@@ -964,23 +965,17 @@ function previewFotos(e){
 function removeFoto(btn){btn.parentElement.remove();toast('Foto eliminada.');}
 
 // ── VIDEO ────────────────────────────────────────────────────────────────
-async async function addVideo(){
-  let raw=document.getElementById('ytUrl').value.trim();
+async function addVideo(){
+  let url=document.getElementById('ytUrl').value.trim();
   const pid=parseInt(document.getElementById('ytProp').value);
-  if(!raw){toast('⚠️ Ingresa una URL de YouTube','error');return;}
-  let embedUrl='';
-  const mShort=raw.match(/shorts\/([A-Za-z0-9_-]{6,15})/);
-  const mWatch=raw.match(/(?:watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
-  const mEmbed=raw.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{11})/);
-  if(mEmbed) embedUrl='https://www.youtube.com/embed/'+mEmbed[1];
-  else if(mShort) embedUrl='https://www.youtube.com/embed/'+mShort[1];
-  else if(mWatch) embedUrl='https://www.youtube.com/embed/'+mWatch[1];
-  if(!embedUrl){toast('⚠️ URL de YouTube no reconocida','error');return;}
+  if(!url){toast('⚠️ Ingresa una URL de YouTube','error');return;}
+  url=url.replace('watch?v=','embed/').replace('youtu.be/','www.youtube.com/embed/');
+  if(!url.includes('embed')){toast('⚠️ Usa un link embed de YouTube','error');return;}
   const p=props.find(x=>x.id===pid);
   if(p){
     toast('⏳ Guardando video...','');
-    const ok=await dbUpdate(pid,{video:embedUrl});
-    p.video=embedUrl;
+    const ok=await dbUpdate(pid,{video:url});
+    p.video=url;
     renderMedia(props);renderAdminList();
     toast(ok?'🎬 Video guardado en base de datos.':'🎬 Video actualizado (sin conexión DB).','success');
     document.getElementById('ytUrl').value='';
@@ -1142,14 +1137,9 @@ renderProps(props);
 renderMedia(props);
 updateStats();
 initMap();
-</script>
 
 
 
-
-
-
-<script>
 // ══════════════════════════════════════════════
 //  SUPABASE — conexión directa REST API
 // ══════════════════════════════════════════════
@@ -1535,6 +1525,7 @@ window.addEventListener('load', ()=>{
   // Re-apply contacto after full page load to ensure contact section is in DOM
   setTimeout(()=>{ if(window.urbContacto) applyContacto(window.urbContacto); }, 1200);
 });
+
 </script>
 
 
