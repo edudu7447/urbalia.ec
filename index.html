@@ -246,10 +246,10 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
 /* ── MODAL PROPIEDAD ─────────────────────────────────────────────── */
 .prop-modal-overlay{position:fixed;inset:0;background:rgba(10,17,46,.85);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .3s}
 .prop-modal-overlay.open{opacity:1;pointer-events:all}
-.prop-modal{background:white;border-radius:20px;width:100%;max-width:900px;max-height:90vh;overflow-y:auto;box-shadow:0 40px 100px rgba(10,17,46,.4);transform:translateY(30px);transition:transform .3s}
+.prop-modal{background:white;border-radius:20px;width:100%;max-width:900px;max-height:92vh;overflow-y:auto;box-shadow:0 40px 100px rgba(10,17,46,.4);transform:translateY(30px);transition:transform .3s}
 .prop-modal-overlay.open .prop-modal{transform:translateY(0)}
-.modal-gallery{position:relative;background:#0a112e;border-radius:20px 20px 0 0;overflow:hidden;min-height:320px;max-height:70vh;display:flex;align-items:center;justify-content:center}
-.modal-gallery img{max-width:100%;max-height:70vh;width:auto;height:auto;object-fit:contain;display:block;margin:auto}
+.modal-gallery{position:relative;background:#0a112e;border-radius:20px 20px 0 0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.modal-gallery img{width:100%;max-height:80vh;height:auto;object-fit:contain;display:block}
 .modal-gallery-empty{display:flex;align-items:center;justify-content:center;font-size:4rem;height:100%}
 .modal-thumbs{display:flex;gap:.5rem;padding:.75rem 1.5rem;background:#f7f8fa;overflow-x:auto}
 .modal-thumb{width:72px;height:52px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid transparent;flex-shrink:0;transition:border-color .2s}
@@ -835,7 +835,7 @@ function renderProps(list){
 function renderMedia(list){
   const wv=list.filter(p=>p.video);
   document.getElementById('mediaGrid').innerHTML=wv.length
-    ?wv.map(p=>`<article class="media-card"><h3>${p.title}</h3><p>📍 ${p.location}</p><iframe class="media-frame" src="${p.video}" title="${p.title}" allowfullscreen loading="lazy"></iframe></article>`).join('')
+    ?wv.map(p=>{const emb=toEmbed(p.video)||p.video;return `<article class="media-card"><h3>${p.title}</h3><p>📍 ${p.location}</p><iframe class="media-frame" src="${emb}" title="${p.title}" allowfullscreen loading="lazy"></iframe></article>`;}).join('')
     :'<div class="empty-msg" style="grid-column:1/-1">🎬 Agrega un video YouTube a cualquier propiedad para verlo aquí.</div>';
 }
 function renderAdminList(){
@@ -951,17 +951,33 @@ function previewFotos(e){
 function removeFoto(btn){btn.parentElement.remove();toast('Foto eliminada.');}
 
 // ── VIDEO ────────────────────────────────────────────────────────────────
+function toEmbed(raw){
+  if(!raw) return null;
+  // ya es embed
+  var me=raw.match(/youtube\.com\/embed\/([A-Za-z0-9_-]{11})/);
+  if(me) return 'https://www.youtube.com/embed/'+me[1];
+  // shorts
+  var ms=raw.match(/shorts\/([A-Za-z0-9_-]{11})/);
+  if(ms) return 'https://www.youtube.com/embed/'+ms[1];
+  // watch?v=
+  var mw=raw.match(/[?&]v=([A-Za-z0-9_-]{11})/);
+  if(mw) return 'https://www.youtube.com/embed/'+mw[1];
+  // youtu.be/
+  var mb=raw.match(/youtu\.be\/([A-Za-z0-9_-]{11})/);
+  if(mb) return 'https://www.youtube.com/embed/'+mb[1];
+  return null;
+}
 async function addVideo(){
-  let url=document.getElementById('ytUrl').value.trim();
+  let raw=document.getElementById('ytUrl').value.trim();
   const pid=parseInt(document.getElementById('ytProp').value);
-  if(!url){toast('⚠️ Ingresa una URL de YouTube','error');return;}
-  url=url.replace('watch?v=','embed/').replace('youtu.be/','www.youtube.com/embed/');
-  if(!url.includes('embed')){toast('⚠️ Usa un link embed de YouTube','error');return;}
+  if(!raw){toast('⚠️ Ingresa una URL de YouTube','error');return;}
+  const embedUrl=toEmbed(raw);
+  if(!embedUrl){toast('⚠️ URL de YouTube no reconocida','error');return;}
   const p=props.find(x=>x.id===pid);
   if(p){
     toast('⏳ Guardando video...','');
-    const ok=await dbUpdate(pid,{video:url});
-    p.video=url;
+    const ok=await dbUpdate(pid,{video:embedUrl});
+    p.video=embedUrl;
     renderMedia(props);renderAdminList();
     toast(ok?'🎬 Video guardado en base de datos.':'🎬 Video actualizado (sin conexión DB).','success');
     document.getElementById('ytUrl').value='';
@@ -1306,7 +1322,7 @@ function openModal(id) {
     const vs = document.createElement('div');
     vs.id = 'modalVideoSection';
     vs.style.cssText = 'padding:.5rem 1.5rem .75rem;background:#f7f8fa;border-bottom:1px solid rgba(30,45,111,.07)';
-    vs.innerHTML = '<div style="font-weight:700;color:#1E2D6F;font-size:.82rem;margin-bottom:.4rem">🎬 VIDEO DE LA PROPIEDAD</div><iframe src="'+p.video+'" style="width:100%;aspect-ratio:16/9;border:none;border-radius:10px" allowfullscreen loading="lazy"></iframe>';
+    vs.innerHTML = '<div style="font-weight:700;color:#1E2D6F;font-size:.82rem;margin-bottom:.4rem">🎬 VIDEO DE LA PROPIEDAD</div><iframe src="'+(toEmbed(p.video)||p.video)+'" style="width:100%;aspect-ratio:16/9;border:none;border-radius:10px" allowfullscreen loading="lazy"></iframe>';
     const modalBox = document.getElementById('propModalBox');
     const modalBody = modalBox.querySelector('.modal-body');
     modalBox.insertBefore(vs, modalBody);
