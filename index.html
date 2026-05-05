@@ -837,12 +837,12 @@ body {
           </div>
           <button class="btn btn-gold" style="margin-top:1rem" onclick="addVideo()">🎬 Agregar video</button>
           <div style="background:rgba(255,255,255,.07);border-radius:var(--r-sm);padding:1rem;margin-top:1rem">
-            <div style="color:var(--dorado);font-weight:700;font-size:.82rem;margin-bottom:.6rem">✅ Formatos de URL compatibles:</div>
+            <div style="color:var(--dorado);font-weight:700;font-size:.82rem;margin-bottom:.6rem">✅ Formatos de URL aceptados:</div>
             <ol style="color:rgba(255,255,255,.6);font-size:.82rem;padding-left:1.2rem;line-height:1.8">
-              <li>Copia el link del video de YouTube (cualquier formato)</li>
-              <li>Funciona con: videos normales, Shorts, youtu.be</li>
-              <li>Puedes pegar varios links separados por comas o líneas</li>
-              <li>Ejemplos: youtube.com/watch?v=... · youtu.be/... · youtube.com/shorts/...</li>
+              <li>Abre el video en YouTube</li>
+              <li>Clic en "Compartir" → "Insertar"</li>
+              <li>Copia el link que aparece en src="..."</li>
+              <li>Pégalo arriba (empieza con https://www.youtube.com/embed/)</li>
             </ol>
           </div>
         </div>
@@ -1135,53 +1135,41 @@ function previewFotos(e){
 function removeFoto(btn){btn.parentElement.remove();toast('Foto eliminada.');}
 
 // ── VIDEO ────────────────────────────────────────────────────────────────
-async async function addVideo(){
-  const rawUrl = document.getElementById('ytUrl').value.trim();
-  const pid    = parseInt(document.getElementById('ytProp').value);
-  if(!rawUrl){ toast('⚠️ Ingresa una URL de YouTube','error'); return; }
+async function addVideo(){
+  const rawUrl=(document.getElementById('ytUrl').value||''). trim();
+  const pid=parseInt(document.getElementById('ytProp').value);
+  if(!rawUrl){toast('⚠️ Ingresa una URL de YouTube','error');return;}
 
-  // ── Parser universal YouTube ──
-  function toEmbedObj(u){
-    u = (u||'').trim();
-    // ya es embed
-    if(u.indexOf('youtube.com/embed/')>-1) return {embed:u, isShort:false};
-    // Shorts: youtube.com/shorts/ID  o  youtu.be/ID con /shorts
-    var mShort = u.match(/shorts\/([A-Za-z0-9_-]{6,15})/);
-    if(mShort) return {embed:'https://www.youtube.com/embed/'+mShort[1], isShort:true};
-    // watch?v=ID
-    var mWatch = u.match(/(?:watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
-    if(mWatch) return {embed:'https://www.youtube.com/embed/'+mWatch[1], isShort:false};
+  function parseYT(u){
+    u=(u||'').trim();
+    if(u.indexOf('youtube.com/embed/')>-1) return {embed:u,isShort:false};
+    var ms=u.match(/shorts\/([A-Za-z0-9_-]{6,15})/);
+    if(ms) return {embed:'https://www.youtube.com/embed/'+ms[1],isShort:true};
+    var mw=u.match(/(?:watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    if(mw) return {embed:'https://www.youtube.com/embed/'+mw[1],isShort:false};
     return null;
   }
 
-  // Soporta múltiples URLs separadas por salto de línea o coma
-  const lines = rawUrl.split(/[\n,]+/).map(l=>l.trim()).filter(Boolean);
-  const parsed = lines.map(toEmbedObj).filter(Boolean);
+  const lines=rawUrl.split(/[\n,]+/).map(function(l){return l.trim();}).filter(Boolean);
+  const parsed=lines.map(parseYT).filter(Boolean);
+  if(!parsed.length){toast('⚠️ URL no reconocida. Usa cualquier link de YouTube','error');return;}
 
-  if(!parsed.length){
-    toast('⚠️ No se reconoció la URL. Pega el link de YouTube (cualquier formato)','error');
-    return;
-  }
+  const p=props.find(function(x){return x.id===pid;});
+  if(!p){toast('⚠️ Selecciona una propiedad','error');return;}
 
-  const p = props.find(x=>x.id===pid);
-  if(!p){ toast('⚠️ Selecciona una propiedad','error'); return; }
-
-  // Combinar con videos existentes
-  let existing = [];
-  if(p.video){
-    try { existing = JSON.parse(p.video); if(!Array.isArray(existing)) existing=[]; }
-    catch(e){ existing=[]; }
-  }
-  const merged = [...existing, ...parsed];
-  const videoJson = JSON.stringify(merged);
+  var existing=[];
+  if(p.video){try{existing=JSON.parse(p.video);if(!Array.isArray(existing))existing=[];}catch(e){existing=[];}}
+  var merged=existing.concat(parsed);
+  var videoJson=JSON.stringify(merged);
 
   toast('⏳ Guardando video...','');
-  const ok = await dbUpdate(pid, {video: videoJson});
-  p.video = videoJson;
-  renderMedia(props); renderAdminList();
-  toast(ok ? '🎬 Video guardado correctamente.' : '🎬 Video guardado (sin conexión DB).','success');
-  document.getElementById('ytUrl').value = '';
+  const ok=await dbUpdate(pid,{video:videoJson});
+  p.video=videoJson;
+  renderMedia(props);renderAdminList();
+  toast(ok?'🎬 Video guardado correctamente.'  :'🎬 Video guardado (sin conexión DB).','success');
+  document.getElementById('ytUrl').value='';
 }
+
 
 // ── EMPRESA ──────────────────────────────────────────────────────────────
 async function saveEmpresa(){
@@ -1209,8 +1197,7 @@ async function saveContacto(){
     dir:document.getElementById('c_dir').value.trim()
   };
   localStorage.setItem('urbalia_contacto', JSON.stringify(data));
-  localStorage.setItem('urbalia_conta_bak', JSON.stringify(data));
-  window.urbContacto = data;
+  window.urbContacto=data;
   localStorage.setItem('urbalia_contacto', JSON.stringify(data));
   const ok = await dbSaveConfig('contacto', JSON.stringify(data));
   // Apply immediately AND after short delay to ensure DOM is ready
@@ -1854,17 +1841,11 @@ async function delProp(id){
 }
 
 window.addEventListener('load', ()=>{
-  // Aplicar datos de contacto desde localStorage INMEDIATAMENTE (sin esperar Supabase)
-  try {
-    const localCon = localStorage.getItem('urbalia_contacto');
-    if(localCon){ const con = JSON.parse(localCon); window.urbContacto=con; applyContacto(con); }
-  } catch(e){}
-
+  try{var lc=localStorage.getItem('urbalia_contacto');if(lc){var ld=JSON.parse(lc);window.urbContacto=ld;applyContacto(ld);}}catch(e){}
   loadConfig();
   setTimeout(loadFromDB, 600);
-  // Re-apply después de que Supabase cargue (por si actualizó datos)
-  setTimeout(()=>{ if(window.urbContacto) applyContacto(window.urbContacto); }, 2000);
-  setTimeout(()=>{ if(window.urbContacto) applyContacto(window.urbContacto); }, 4000);
+  // Re-apply contacto after full page load to ensure contact section is in DOM
+  setTimeout(()=>{ if(window.urbContacto) applyContacto(window.urbContacto); }, 1200);
 });
 
 /* ══════════════════════════════════════
