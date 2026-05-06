@@ -579,7 +579,7 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
             <a id="cLinkWa" href="https://wa.me/593958826795" target="_blank" rel="noopener" class="contact-link">📱 WhatsApp: +593 958 826 795</a>
             <a id="cLinkEmail" href="mailto:info@urbalia.ec" class="contact-link">✉️ info@urbalia.ec</a>
             <span id="cLinkDir" class="contact-link">📍 Riobamba, Chimborazo, Ecuador</span>
-            <a id="cLinkWeb" href="https://urbalia-ec.netlify.app" target="_blank" rel="noopener" class="contact-link">🌐 urbalia-ec.netlify.app</a>
+            <a id="cLinkWeb" href="https://edudu7447.github.io/urbalia.ec" target="_blank" rel="noopener" class="contact-link">🌐 edudu7447.github.io/urbalia.ec</a>
           </div>
         </div>
         <form class="contact-form-card" id="contactForm">
@@ -1032,6 +1032,7 @@ function applyContacto(data){
   // update visible text in contact links
   if(links[0])links[0].textContent='WhatsApp '+data.wa;
   if(links[1])links[1].textContent=data.email;
+  if(links[2]){const webUrl=data.web?(data.web.startsWith('http')?data.web:'https://'+data.web):'https://edudu7447.github.io/urbalia.ec';links[2].href=webUrl;links[2].textContent='🌐 '+(data.web||'edudu7447.github.io/urbalia.ec');}
 }
 
 // ── CONTACT FORM ─────────────────────────────────────────────────────────
