@@ -103,6 +103,8 @@ h1{font-size:clamp(2.3rem,4.5vw,4.5rem);font-weight:900;margin-bottom:1rem;color
 .prop-card:hover{transform:translateY(-4px);box-shadow:var(--sombra-lg)}
 .prop-img{aspect-ratio:16/10;position:relative;overflow:hidden;background:linear-gradient(135deg,var(--azul-claro),#d0daff);display:flex;align-items:center;justify-content:center;font-size:2.8rem}
 .prop-img img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#EBF0FB}
+.prop-slide{opacity:0;transition:opacity .8s ease;object-fit:cover!important}
+.prop-slide.active{opacity:1}
 .prop-tag{position:absolute;top:.7rem;left:.7rem;background:var(--dorado);color:var(--azul);padding:.28rem .75rem;border-radius:var(--r-full);font-size:.7rem;font-weight:800}
 .prop-body{padding:1.2rem;flex:1;display:flex;flex-direction:column}
 .prop-price{font-size:1.55rem;font-weight:900;color:var(--azul);margin-bottom:.25rem}
@@ -812,12 +814,12 @@ function updateStats(){
 function propCard(p){
   const allImgs = [p.image, ...(p.images||[])].filter(Boolean);
   const img = allImgs.length
-    ? '<img src="'+allImgs[0]+'" alt="'+p.title+'" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" loading="lazy"/>'
+    ? allImgs.map((url,i)=>'<img src="'+url+'" alt="'+p.title+'" class="prop-slide'+(i===0?' active':'')+'" loading="lazy"/>').join('')
     : '<span>🏠</span>';
   const meta=[p.beds>0?'<span>🛏 '+p.beds+' hab.</span>':'',p.baths>0?'<span>🚿 '+p.baths+' baños</span>':'',p.area>0?'<span>📐 '+p.area+' m²</span>':''].filter(Boolean).join('');
   const feats=(p.features||[]).map(f=>'<span>'+f+'</span>').join('');
   return '<article class="prop-card" onclick="openModal('+p.id+')" style="cursor:pointer">'
-    +'<div class="prop-img">'+img+'<span class="prop-tag">EN '+p.type.toUpperCase()+'</span></div>'
+    +'<div class="prop-img" data-count="'+allImgs.length+'">'+img+'<span class="prop-tag">'+p.type.toUpperCase()+'</span></div>'
     +'<div class="prop-body">'
     +'<div class="prop-price">'+p.price+'</div>'
     +'<div class="prop-loc">📍 '+p.location+'</div>'
@@ -828,9 +830,25 @@ function propCard(p){
     +'</div></article>';
 }
 
+function startPropCarousels(){
+  document.querySelectorAll('.prop-img').forEach(container=>{
+    const slides = container.querySelectorAll('.prop-slide');
+    if(slides.length<=1) return;
+    if(container.dataset.carouselOn) return;
+    container.dataset.carouselOn='1';
+    let i=0;
+    setInterval(()=>{
+      slides[i].classList.remove('active');
+      i=(i+1)%slides.length;
+      slides[i].classList.add('active');
+    }, 3500);
+  });
+}
+
 
 function renderProps(list){
   document.getElementById('propGrid').innerHTML=list.length?list.map(propCard).join(''):'<div class="empty-msg">🔍 No se encontraron propiedades.</div>';
+  startPropCarousels();
 }
 function renderMedia(list){
   const wv=list.filter(p=>p.video);
@@ -887,17 +905,23 @@ document.getElementById('searchBox').addEventListener('input',e=>{
 });
 
 // ── ADMIN AUTH ────────────────────────────────────────────────────────────
-function adminLogin(){
+const ADMIN_HASH = "60600e2d36d08c7dec0df7e930bea328f3e86a8de5fd2d2aaa776b7e02d55ff2";
+async function sha256Hex(text){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function adminLogin(){
   const p=document.getElementById('adminPass').value;
-  if(p==='urbalia2025'){
+  const hash = await sha256Hex(p);
+  if(hash===ADMIN_HASH){
     document.getElementById('adminLogin').style.display='none';
     document.getElementById('adminPanel').style.display='block';
     renderAdminList();
     toast('✅ Bienvenido al panel de administrador','success');
   } else {
     toast('❌ Contraseña incorrecta','error');
-    document.getElementById('adminPass').value='';
   }
+  document.getElementById('adminPass').value='';
 }
 document.getElementById('adminPass').addEventListener('keydown',e=>{if(e.key==='Enter')adminLogin();});
 
