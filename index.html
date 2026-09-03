@@ -145,6 +145,7 @@ h1{font-size:clamp(2.3rem,4.5vw,4.5rem);font-weight:900;margin-bottom:1rem;color
 .admin-section .eyebrow{color:var(--dorado)}
 .admin-tabs{display:flex;gap:.5rem;margin-bottom:1.5rem;flex-wrap:wrap}
 .admin-tab{padding:.65rem 1.2rem;border-radius:var(--r-full);font-weight:700;font-size:.85rem;background:rgba(255,255,255,.1);color:rgba(255,255,255,.7);border:2px solid rgba(255,255,255,.1);transition:all var(--t);cursor:pointer}
+.admin-tab:hover{background:rgba(255,255,255,.18);color:white}
 .admin-tab.activo{background:var(--dorado);color:var(--azul);border-color:var(--dorado)}
 .admin-pane{display:none}
 .admin-pane.activo{display:block}
@@ -166,8 +167,12 @@ h1{font-size:clamp(2.3rem,4.5vw,4.5rem);font-weight:900;margin-bottom:1rem;color
 .preview-thumb img{width:100%;height:100%;object-fit:cover}
 .preview-thumb button{position:absolute;top:.2rem;right:.2rem;background:var(--rojo);color:white;width:20px;height:20px;border-radius:50%;font-size:.7rem;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .prop-list-admin{display:grid;gap:.7rem}
-.prop-admin-row{background:rgba(255,255,255,.07);border-radius:var(--r-sm);padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;border:1px solid rgba(255,255,255,.08)}
-.prop-admin-info strong{color:white;font-size:.9rem}
+.prop-admin-row{background:rgba(255,255,255,.07);border-radius:var(--r-sm);padding:.9rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;border:1px solid rgba(255,255,255,.08);transition:background var(--t)}
+.prop-admin-row:hover{background:rgba(255,255,255,.11)}
+.prop-admin-thumb{width:52px;height:52px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0;background:rgba(255,255,255,.1)}
+.prop-admin-left{display:flex;align-items:center;gap:.8rem;min-width:0}
+.prop-admin-info{min-width:0}
+.prop-admin-info strong{color:white;font-size:.9rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .prop-admin-info span{color:rgba(255,255,255,.5);font-size:.78rem;display:block}
 .prop-admin-actions{display:flex;gap:.4rem;flex-shrink:0}
 .btn-edit{background:rgba(212,168,67,.2);color:var(--dorado);border:1px solid rgba(212,168,67,.3);padding:.4rem .8rem;border-radius:var(--r-sm);font-size:.78rem;font-weight:700;transition:all var(--t)}
@@ -183,10 +188,15 @@ h1{font-size:clamp(2.3rem,4.5vw,4.5rem);font-weight:900;margin-bottom:1rem;color
 .info-field textarea{resize:vertical;min-height:80px}
 /* Media */
 .media-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.3rem}
-.media-card{background:var(--blanco);border-radius:var(--r);box-shadow:var(--sombra);padding:1.3rem}
+.media-card{background:var(--blanco);border-radius:var(--r);box-shadow:var(--sombra);padding:1.3rem;transition:transform var(--t),box-shadow var(--t)}
+.media-card:hover{transform:translateY(-4px);box-shadow:var(--sombra-lg)}
 .media-card h3{font-size:.97rem;font-weight:700;margin-bottom:.3rem}
 .media-card p{color:var(--gris);font-size:.83rem;margin-bottom:.75rem}
-.media-frame{width:100%;aspect-ratio:16/9;border:none;border-radius:var(--r-sm);background:var(--azul-claro);display:block}
+.media-frame{width:100%;aspect-ratio:16/9;border:none;border-radius:var(--r-sm);background:var(--azul-claro);display:block;object-fit:contain}
+/* Video vertical (YouTube Shorts / clips 9:16) — no se recorta ni se aplana */
+.media-frame.vertical{aspect-ratio:9/16;max-width:320px;max-height:70vh;margin:0 auto;background:#000}
+.media-frame.modal-video{border-radius:10px}
+.media-card.vertical{display:flex;flex-direction:column;align-items:center;text-align:center}
 /* NOSOTROS */
 .nos-grid{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center}
 .nos-card{background:var(--blanco);border-radius:var(--r);box-shadow:var(--sombra);padding:1.8rem;display:grid;gap:.8rem}
@@ -674,22 +684,25 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
       <!-- TAB: VIDEOS -->
       <div id="tabVideos" class="admin-pane">
         <div class="admin-form">
-          <div style="color:white;font-weight:800;margin-bottom:1rem">🎬 Agregar video de YouTube</div>
-          <label>URL del video de YouTube</label>
-          <input type="text" id="ytUrl" placeholder="https://www.youtube.com/watch?v=XXXXXXX"/>
+          <div style="color:white;font-weight:800;margin-bottom:1rem">🎬 Agregar video</div>
+          <label>URL del video (YouTube normal, YouTube Shorts vertical, o link directo .mp4)</label>
+          <input type="text" id="ytUrl" placeholder="https://www.youtube.com/watch?v=XXXXXXX o .../shorts/XXXXXXX" oninput="previewVideo()"/>
+          <div id="ytPreviewWrap" style="display:none;margin-top:.8rem">
+            <div id="ytPreviewBadge" style="display:inline-block;font-size:.72rem;font-weight:700;padding:.25rem .7rem;border-radius:var(--r-full);margin-bottom:.5rem"></div>
+            <div id="ytPreviewBox" style="background:rgba(0,0,0,.25);border-radius:var(--r-sm);padding:.8rem"></div>
+          </div>
           <div style="margin-top:.5rem">
             <label>Propiedad relacionada</label>
             <select id="ytProp" style="width:100%"></select>
           </div>
           <button class="btn btn-gold" style="margin-top:1rem" onclick="addVideo()">🎬 Agregar video</button>
           <div style="background:rgba(255,255,255,.07);border-radius:var(--r-sm);padding:1rem;margin-top:1rem">
-            <div style="color:var(--dorado);font-weight:700;font-size:.82rem;margin-bottom:.6rem">¿Cómo obtener el link embed?</div>
-            <ol style="color:rgba(255,255,255,.6);font-size:.82rem;padding-left:1.2rem;line-height:1.8">
-              <li>Abre el video en YouTube</li>
-              <li>Clic en "Compartir" → "Insertar"</li>
-              <li>Copia el link que aparece en src="..."</li>
-              <li>Pégalo arriba (empieza con https://www.youtube.com/embed/)</li>
-            </ol>
+            <div style="color:var(--dorado);font-weight:700;font-size:.82rem;margin-bottom:.6rem">Tipos de link aceptados</div>
+            <ul style="color:rgba(255,255,255,.6);font-size:.82rem;padding-left:1.2rem;line-height:1.8">
+              <li><strong>YouTube normal:</strong> youtube.com/watch?v=... o youtu.be/...</li>
+              <li><strong>YouTube Shorts (vertical):</strong> youtube.com/shorts/... — se muestra vertical automáticamente</li>
+              <li><strong>Video directo:</strong> un link que termine en .mp4 (funciona tanto horizontal como vertical)</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -853,14 +866,20 @@ function renderProps(list){
 function renderMedia(list){
   const wv=list.filter(p=>p.video);
   document.getElementById('mediaGrid').innerHTML=wv.length
-    ?wv.map(p=>{const emb=toEmbed(p.video)||p.video;return `<article class="media-card"><h3>${p.title}</h3><p>📍 ${p.location}</p><iframe class="media-frame" src="${emb}" title="${p.title}" allowfullscreen loading="lazy"></iframe></article>`;}).join('')
-    :'<div class="empty-msg" style="grid-column:1/-1">🎬 Agrega un video YouTube a cualquier propiedad para verlo aquí.</div>';
+    ?wv.map(p=>{
+      const vertical = isVerticalVideo(p.video) ? ' vertical' : '';
+      return `<article class="media-card${vertical}"><h3>${p.title}</h3><p>📍 ${p.location}</p>${videoPlayerHtml(p.video)}</article>`;
+    }).join('')
+    :'<div class="empty-msg" style="grid-column:1/-1">🎬 Agrega un video a cualquier propiedad para verlo aquí.</div>';
 }
 function renderAdminList(){
   const el=document.getElementById('adminPropList');
   el.innerHTML=!props.length?'<div style="color:rgba(255,255,255,.4);text-align:center;padding:1.5rem">No hay propiedades.</div>'
     :props.map(p=>`<div class="prop-admin-row">
-      <div class="prop-admin-info"><strong>${p.title}</strong><span>${p.location} · ${p.price} · ${p.type}</span></div>
+      <div class="prop-admin-left">
+        ${p.image?`<img class="prop-admin-thumb" src="${p.image}" alt=""/>`:`<div class="prop-admin-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.3rem">🏠</div>`}
+        <div class="prop-admin-info"><strong>${p.title}</strong><span>${p.location} · ${p.price} · ${p.type}${p.video?(isVerticalVideo(p.video)?' · 📱 video':' · 🎬 video'):''}</span></div>
+      </div>
       <div class="prop-admin-actions">
         <button class="btn-edit" onclick="editProp(${p.id})">✏️ Editar</button>
         <button class="btn-del" onclick="delProp(${p.id})">🗑️ Eliminar</button>
@@ -1000,12 +1019,31 @@ function toEmbed(raw){
   if(mb) return 'https://www.youtube.com/embed/'+mb[1];
   return null;
 }
+// Un video vertical (YouTube Shorts, TikTok, Reels o clip 9:16) no debe forzarse
+// dentro de una caja horizontal 16:9 — se ve aplastado o con barras negras enormes.
+function isVerticalVideo(raw){
+  if(!raw) return false;
+  return /shorts\//.test(raw) || /tiktok\.com/.test(raw) || /instagram\.com\/reel/.test(raw) || /#vertical/.test(raw);
+}
+function isDirectVideoFile(raw){
+  return !!raw && /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(raw);
+}
+// Devuelve el HTML del reproductor ya listo (iframe de YouTube o <video> nativo)
+function videoPlayerHtml(raw, extraClass){
+  extraClass = extraClass || '';
+  const vertical = isVerticalVideo(raw) ? ' vertical' : '';
+  if (isDirectVideoFile(raw)) {
+    return '<video class="media-frame'+extraClass+vertical+'" src="'+raw+'" controls playsinline preload="metadata"></video>';
+  }
+  const emb = toEmbed(raw) || raw;
+  return '<iframe class="media-frame'+extraClass+vertical+'" src="'+emb+'" allowfullscreen loading="lazy"></iframe>';
+}
 async function addVideo(){
   let raw=document.getElementById('ytUrl').value.trim();
   const pid=parseInt(document.getElementById('ytProp').value);
-  if(!raw){toast('⚠️ Ingresa una URL de YouTube','error');return;}
-  const embedUrl=toEmbed(raw);
-  if(!embedUrl){toast('⚠️ URL de YouTube no reconocida','error');return;}
+  if(!raw){toast('⚠️ Ingresa una URL de video','error');return;}
+  const embedUrl = isDirectVideoFile(raw) ? raw : toEmbed(raw);
+  if(!embedUrl){toast('⚠️ URL de video no reconocida','error');return;}
   const p=props.find(x=>x.id===pid);
   if(p){
     toast('⏳ Guardando video...','');
@@ -1014,7 +1052,22 @@ async function addVideo(){
     renderMedia(props);renderAdminList();
     toast(ok?'🎬 Video guardado en base de datos.':'🎬 Video actualizado (sin conexión DB).','success');
     document.getElementById('ytUrl').value='';
+    document.getElementById('ytPreviewWrap').style.display='none';
   }
+}
+function previewVideo(){
+  const raw = document.getElementById('ytUrl').value.trim();
+  const wrap = document.getElementById('ytPreviewWrap');
+  const badge = document.getElementById('ytPreviewBadge');
+  const box = document.getElementById('ytPreviewBox');
+  const valid = isDirectVideoFile(raw) || toEmbed(raw);
+  if(!raw || !valid){ wrap.style.display='none'; return; }
+  const vertical = isVerticalVideo(raw);
+  wrap.style.display='block';
+  badge.textContent = vertical ? '📱 Video vertical detectado' : '🖥️ Video horizontal';
+  badge.style.background = vertical ? 'rgba(212,168,67,.2)' : 'rgba(255,255,255,.15)';
+  badge.style.color = vertical ? 'var(--dorado)' : 'rgba(255,255,255,.8)';
+  box.innerHTML = videoPlayerHtml(raw);
 }
 
 // ── EMPRESA ──────────────────────────────────────────────────────────────
@@ -1357,8 +1410,8 @@ function openModal(id) {
   if(p.video){
     const vs = document.createElement('div');
     vs.id = 'modalVideoSection';
-    vs.style.cssText = 'padding:.5rem 1.5rem .75rem;background:#f7f8fa;border-bottom:1px solid rgba(30,45,111,.07)';
-    vs.innerHTML = '<div style="font-weight:700;color:#1E2D6F;font-size:.82rem;margin-bottom:.4rem">🎬 VIDEO DE LA PROPIEDAD</div><iframe src="'+(toEmbed(p.video)||p.video)+'" style="width:100%;aspect-ratio:16/9;border:none;border-radius:10px" allowfullscreen loading="lazy"></iframe>';
+    vs.style.cssText = 'padding:.5rem 1.5rem .75rem;background:#f7f8fa;border-bottom:1px solid rgba(30,45,111,.07);text-align:'+(isVerticalVideo(p.video)?'center':'left');
+    vs.innerHTML = '<div style="font-weight:700;color:#1E2D6F;font-size:.82rem;margin-bottom:.4rem">🎬 VIDEO DE LA PROPIEDAD</div>'+videoPlayerHtml(p.video, ' modal-video');
     const modalBox = document.getElementById('propModalBox');
     const modalBody = modalBox.querySelector('.modal-body');
     modalBox.insertBefore(vs, modalBody);
