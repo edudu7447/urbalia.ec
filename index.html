@@ -819,7 +819,7 @@ function propCard(p){
   const meta=[p.beds>0?'<span>🛏 '+p.beds+' hab.</span>':'',p.baths>0?'<span>🚿 '+p.baths+' baños</span>':'',p.area>0?'<span>📐 '+p.area+' m²</span>':''].filter(Boolean).join('');
   const feats=(p.features||[]).map(f=>'<span>'+f+'</span>').join('');
   return '<article class="prop-card" onclick="openModal('+p.id+')" style="cursor:pointer">'
-    +'<div class="prop-img" data-count="'+allImgs.length+'">'+img+'<span class="prop-tag">'+p.type.toUpperCase()+'</span></div>'
+    +'<div class="prop-img" data-count="'+allImgs.length+'">'+img+'<span class="prop-tag">EN '+p.type.toUpperCase()+'</span></div>'
     +'<div class="prop-body">'
     +'<div class="prop-price">'+p.price+'</div>'
     +'<div class="prop-loc">📍 '+p.location+'</div>'
@@ -904,22 +904,31 @@ document.getElementById('searchBox').addEventListener('input',e=>{
   renderProps(!q?props:props.filter(p=>[p.title,p.location,p.type,...p.features].join(' ').toLowerCase().includes(q)));
 });
 
-// ── ADMIN AUTH ────────────────────────────────────────────────────────────
-const ADMIN_HASH = "60600e2d36d08c7dec0df7e930bea328f3e86a8de5fd2d2aaa776b7e02d55ff2";
-async function sha256Hex(text){
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
+// ── ADMIN AUTH (Supabase Auth real — la sesión es la que autoriza escrituras) ──
+// El usuario admin se crea una sola vez en Supabase > Authentication > Users.
+const ADMIN_EMAIL = "admin@urbalia.ec";
+let adminSession = null; // { access_token } — se obtiene al iniciar sesión, nunca se expone en el HTML
+
 async function adminLogin(){
-  const p=document.getElementById('adminPass').value;
-  const hash = await sha256Hex(p);
-  if(hash===ADMIN_HASH){
-    document.getElementById('adminLogin').style.display='none';
-    document.getElementById('adminPanel').style.display='block';
-    renderAdminList();
-    toast('✅ Bienvenido al panel de administrador','success');
-  } else {
-    toast('❌ Contraseña incorrecta','error');
+  const p = document.getElementById('adminPass').value;
+  try {
+    const r = await fetch('https://ykohqoqamysunuhoiwcq.supabase.co/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: { 'apikey': DB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: ADMIN_EMAIL, password: p })
+    });
+    const d = await r.json();
+    if (r.ok && d.access_token) {
+      adminSession = { access_token: d.access_token };
+      document.getElementById('adminLogin').style.display='none';
+      document.getElementById('adminPanel').style.display='block';
+      renderAdminList();
+      toast('✅ Bienvenido al panel de administrador','success');
+    } else {
+      toast('❌ Contraseña incorrecta','error');
+    }
+  } catch(e) {
+    toast('❌ Error de conexión con el servidor','error');
   }
   document.getElementById('adminPass').value='';
 }
@@ -1171,6 +1180,18 @@ const dbH = {
   'Prefer': 'return=representation'
 };
 
+// Cabeceras para escritura: usan el token de sesión del admin (si inició sesión),
+// que es lo que las políticas RLS de Supabase deben exigir para INSERT/UPDATE/DELETE.
+function writeHeaders(extra){
+  return {
+    'apikey': DB_KEY,
+    'Authorization': 'Bearer ' + (adminSession ? adminSession.access_token : DB_KEY),
+    'Content-Type': 'application/json',
+    'Prefer': 'return=representation',
+    ...(extra||{})
+  };
+}
+
 async function dbGet() {
   try {
     const r = await fetch(DB_URL + '/propiedades?order=id.desc', { headers: dbH });
@@ -1182,7 +1203,7 @@ async function dbGet() {
 async function dbInsert(p) {
   try {
     const r = await fetch(DB_URL + '/propiedades', {
-      method:'POST', headers: dbH,
+      method:'POST', headers: writeHeaders(),
       body: JSON.stringify({
         title:p.title, location:p.location, price:p.price,
         beds:p.beds, baths:p.baths, area:p.area,
@@ -1198,7 +1219,7 @@ async function dbInsert(p) {
 async function dbDelete(id) {
   try {
     const r = await fetch(DB_URL + '/propiedades?id=eq.'+id, {
-      method:'DELETE', headers: dbH
+      method:'DELETE', headers: writeHeaders()
     });
     return r.ok;
   } catch(e) { return false; }
@@ -1207,7 +1228,7 @@ async function dbDelete(id) {
 async function dbUpdate(id, fields) {
   try {
     const r = await fetch(DB_URL + '/propiedades?id=eq.'+id, {
-      method:'PATCH', headers: dbH,
+      method:'PATCH', headers: writeHeaders(),
       body: JSON.stringify(fields)
     });
     return r.ok;
@@ -1218,7 +1239,7 @@ async function dbSaveConfig(key, value) {
   try {
     const r = await fetch(DB_URL + '/config', {
       method:'POST',
-      headers: {...dbH, 'Prefer':'resolution=merge-duplicates'},
+      headers: writeHeaders({'Prefer':'resolution=merge-duplicates'}),
       body: JSON.stringify({key, value})
     });
     return r.ok;
@@ -1234,16 +1255,6 @@ async function dbGetAllConfig() {
     rows.forEach(row => obj[row.key] = row.value);
     return obj;
   } catch(e) { return {}; }
-}
-
-async function dbUpdate(id, fields) {
-  try {
-    const r = await fetch(DB_URL + '/propiedades?id=eq.'+id, {
-      method:'PATCH', headers: dbH,
-      body: JSON.stringify(fields)
-    });
-    return r.ok;
-  } catch(e) { return false; }
 }
 
 // Cargar al iniciar
@@ -1269,7 +1280,7 @@ async function uploadSinglePhoto(file) {
   const STORAGE_URL = 'https://ykohqoqamysunuhoiwcq.supabase.co/storage/v1/object/propiedades/' + name;
   const r = await fetch(STORAGE_URL, {
     method:'POST',
-    headers:{'apikey':DB_KEY,'Authorization':'Bearer '+DB_KEY,'Content-Type':file.type},
+    headers: writeHeaders({'Content-Type':file.type}),
     body:file
   });
   if (!r.ok) { console.error('Upload error:', await r.text()); return null; }
@@ -1393,43 +1404,6 @@ function modalNav(dir){
 // Close modal on Escape key
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModal(); });
 
-window.addProp = async function() {
-  const title=g('f_title'), location=g('f_location'), price=g('f_price');
-  if (!title||!location||!price) { toast('⚠️ Completa título, ubicación y precio.','error'); return; }
-  toast('⏳ Guardando en base de datos...','');
-  const extraRaw = document.getElementById('f_images_extra').value;
-  const images = extraRaw ? JSON.parse(extraRaw) : [];
-  const p = {
-    id:Date.now(), title, location, price,
-    beds:parseInt(g('f_beds'))||0, baths:parseInt(g('f_baths'))||0,
-    area:parseInt(g('f_area'))||0,
-    features:g('f_features').split(',').map(s=>s.trim()).filter(Boolean),
-    image:g('f_image'), images, video:g('f_video'), type:g('f_type')
-  };
-  const saved = await dbInsert(p);
-  if (saved) {
-    p.id = saved.id;
-    toast('✅ ¡Propiedad guardada permanentemente!','success');
-  } else {
-    toast('⚠️ No se pudo guardar en DB. Verifica conexión.','error');
-  }
-  props.unshift(p);
-  ['f_title','f_location','f_price','f_beds','f_baths','f_area','f_features','f_image','f_video','f_images_extra']
-    .forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  document.getElementById('fotoPreviewProp').innerHTML='';
-  renderProps(props); renderMedia(props); renderAdminList();
-  document.getElementById('propiedades').scrollIntoView({behavior:'smooth'});
-};
-
-// Eliminar propiedad
-window.delProp = async function(id) {
-  if (!confirm('¿Eliminar esta propiedad?')) return;
-  await dbDelete(id);
-  props = props.filter(p=>p.id!==id);
-  renderProps(props); renderMedia(props); renderAdminList();
-  toast('🗑️ Propiedad eliminada.','');
-};
-
 async function loadConfig(){
   const cfg = await dbGetAllConfig();
 
@@ -1468,18 +1442,21 @@ async function addProp(){
   const title    = document.getElementById('f_title').value.trim();
   const location = document.getElementById('f_location').value.trim();
   const price    = document.getElementById('f_price').value.trim();
-  const beds     = document.getElementById('f_beds').value.trim();
-  const baths    = document.getElementById('f_baths').value.trim();
-  const area     = document.getElementById('f_area').value.trim();
+  const beds     = parseInt(document.getElementById('f_beds').value)||0;
+  const baths    = parseInt(document.getElementById('f_baths').value)||0;
+  const area     = parseInt(document.getElementById('f_area').value)||0;
   const image    = document.getElementById('f_image').value.trim();
-  const features = document.getElementById('f_features').value.trim();
+  const features = document.getElementById('f_features').value.trim().split(',').map(s=>s.trim()).filter(Boolean);
   const video    = document.getElementById('f_video').value.trim();
   const type     = document.getElementById('f_type') ? document.getElementById('f_type').value : 'En venta';
 
   if(!title || !location || !price){ toast('Completa título, ubicación y precio'); return; }
 
+  const extraRaw = document.getElementById('f_images_extra') ? document.getElementById('f_images_extra').value : '';
+  const images = extraRaw ? JSON.parse(extraRaw) : [];
+
   const data = { title, location, price, beds, baths, area,
-                 features, image, images:[], video, type };
+                 features, image, images, video, type };
 
   if(editingPropId !== null){
     // UPDATE existing
@@ -1501,10 +1478,12 @@ async function addProp(){
 
   // Reset form
   ['f_title','f_location','f_price','f_beds','f_baths','f_area',
-   'f_image','f_features','f_video'].forEach(id=>{
+   'f_image','f_features','f_video','f_images_extra'].forEach(id=>{
     const el=document.getElementById(id); if(el) el.value='';
   });
+  const fp=document.getElementById('fotoPreviewProp'); if(fp) fp.innerHTML='';
   renderProps();
+  renderMedia(props);
   renderAdminList();
 }
 
