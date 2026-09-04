@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
 <style>
 :root{
   --azul:#1E2D6F;--azul-med:#2B3F96;--dorado:#D4A843;
@@ -196,6 +197,10 @@ h1{font-size:clamp(2.3rem,4.5vw,4.5rem);font-weight:900;margin-bottom:1rem;color
 /* Video vertical (YouTube Shorts / clips 9:16) — no se recorta ni se aplana */
 .media-frame.vertical{aspect-ratio:9/16;max-width:320px;max-height:70vh;margin:0 auto;background:#000}
 .media-frame.modal-video{border-radius:10px}
+/* Tour 360° */
+.tour360-overlay{position:fixed;inset:0;z-index:999;background:#000}
+.t360-scene-thumb{width:52px;height:52px;border-radius:var(--r-sm);object-fit:cover;flex-shrink:0;background:rgba(255,255,255,.1)}
+.t360-hotspot-row{background:rgba(255,255,255,.06);border-radius:var(--r-sm);padding:.5rem .8rem;display:flex;justify-content:space-between;align-items:center;font-size:.8rem;color:rgba(255,255,255,.8)}
 .media-card.vertical{display:flex;flex-direction:column;align-items:center;text-align:center}
 /* NOSOTROS */
 .nos-grid{display:grid;grid-template-columns:1fr 1fr;gap:3rem;align-items:center}
@@ -633,6 +638,7 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
         <button class="admin-tab activo" onclick="showTab('tabPropiedades',this)">🏠 Propiedades</button>
         <button class="admin-tab" onclick="showTab('tabFotos',this)">📷 Fotos</button>
         <button class="admin-tab" onclick="showTab('tabVideos',this)">🎬 Videos</button>
+        <button class="admin-tab" onclick="showTab('tabTour360',this)">🌐 Tour 360°</button>
         <button class="admin-tab" onclick="showTab('tabEmpresa',this)">🏢 Empresa</button>
         <button class="admin-tab" onclick="showTab('tabContacto',this)">📱 Contacto</button>
       </div>
@@ -707,6 +713,43 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
         </div>
       </div>
 
+      <!-- TAB: TOUR 360° -->
+      <div id="tabTour360" class="admin-pane">
+        <div class="admin-form" style="margin-bottom:1.2rem">
+          <div style="color:white;font-weight:800;margin-bottom:1rem">🌐 Tour virtual 360°</div>
+          <label>Propiedad</label>
+          <select id="t360Prop" style="width:100%" onchange="loadTour360Panel()"></select>
+
+          <div id="t360Empty" style="color:rgba(255,255,255,.5);font-size:.85rem;margin-top:1rem">Selecciona una propiedad para agregar o editar su tour 360°.</div>
+
+          <div id="t360Content" style="display:none;margin-top:1.2rem">
+            <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem">
+              <button type="button" class="btn btn-gold" onclick="document.getElementById('t360FileInput').click()">📷 Subir foto 360°</button>
+              <input type="file" id="t360FileInput" accept="image/*" multiple style="display:none" onchange="uploadTour360Photos(this)"/>
+              <span style="color:rgba(255,255,255,.5);font-size:.78rem">Sube fotos panorámicas 360° (formato equirectangular, relación 2:1)</span>
+            </div>
+
+            <div id="t360SceneList" class="prop-list-admin" style="margin-bottom:1.2rem"></div>
+
+            <div id="t360Editor" style="display:none">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;flex-wrap:wrap;gap:.5rem">
+                <strong style="color:white" id="t360EditorTitle">Editando escena</strong>
+                <div style="display:flex;gap:.5rem">
+                  <button type="button" class="btn-edit" id="t360AddPointBtn" onclick="toggleAddHotspotMode()">➕ Agregar punto de conexión</button>
+                  <button type="button" class="btn-del" onclick="closeTour360Editor()">✕ Cerrar</button>
+                </div>
+              </div>
+              <div id="t360Hint" style="display:none;background:rgba(212,168,67,.15);color:var(--dorado);padding:.6rem 1rem;border-radius:var(--r-sm);font-size:.82rem;margin-bottom:.6rem">👆 Haz clic dentro de la imagen en el punto donde quieres colocar la conexión.</div>
+              <div id="t360Viewer" style="width:100%;height:420px;border-radius:var(--r-sm);overflow:hidden;background:#000"></div>
+              <div id="t360PendingForm" style="margin-top:.8rem"></div>
+              <div id="t360HotspotList" style="margin-top:.8rem;display:grid;gap:.5rem"></div>
+            </div>
+
+            <button class="btn btn-gold" style="margin-top:1.2rem" onclick="saveTour360()">💾 Guardar tour 360°</button>
+          </div>
+        </div>
+      </div>
+
       <!-- TAB: EMPRESA -->
       <div id="tabEmpresa" class="admin-pane">
         <div class="info-card">
@@ -758,11 +801,17 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
       <div class="modal-meta" id="modalMeta"></div>
       <div class="modal-feats" id="modalFeats"></div>
       <div class="modal-actions">
+        <a id="modalTour360" class="modal-contact" style="display:none;cursor:pointer;background:var(--dorado);color:var(--azul)" onclick="openTourModal()">🌐 Ver tour 360°</a>
         <a id="modalWa" class="modal-wa" target="_blank">💬 Consultar por WhatsApp</a>
         <a href="#contacto" class="modal-contact" onclick="closeModal()">✉️ Enviar mensaje</a>
       </div>
     </div>
   </div>
+</div>
+
+<div id="tour360Modal" class="tour360-overlay" style="display:none">
+  <button class="modal-close" onclick="closeTourModal()" style="position:fixed;top:1rem;right:1rem;z-index:1001">✕</button>
+  <div id="tour360PublicViewer" style="width:100%;height:100%"></div>
 </div>
 </main>
 
@@ -778,6 +827,7 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
 </footer>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
 <script>
 
 // ── TOAST ─────────────────────────────────────────────────────────────────
@@ -831,8 +881,9 @@ function propCard(p){
     : '<span>🏠</span>';
   const meta=[p.beds>0?'<span>🛏 '+p.beds+' hab.</span>':'',p.baths>0?'<span>🚿 '+p.baths+' baños</span>':'',p.area>0?'<span>📐 '+p.area+' m²</span>':''].filter(Boolean).join('');
   const feats=(p.features||[]).map(f=>'<span>'+f+'</span>').join('');
+  const tourBadge = (p.tour360 && p.tour360.length) ? '<span class="prop-tag" style="left:auto;right:.7rem;background:var(--azul);color:white">🌐 TOUR 360°</span>' : '';
   return '<article class="prop-card" onclick="openModal('+p.id+')" style="cursor:pointer">'
-    +'<div class="prop-img" data-count="'+allImgs.length+'">'+img+'<span class="prop-tag">EN '+p.type.toUpperCase()+'</span></div>'
+    +'<div class="prop-img" data-count="'+allImgs.length+'">'+img+'<span class="prop-tag">EN '+p.type.toUpperCase()+'</span>'+tourBadge+'</div>'
     +'<div class="prop-body">'
     +'<div class="prop-price">'+p.price+'</div>'
     +'<div class="prop-loc">📍 '+p.location+'</div>'
@@ -888,6 +939,13 @@ function renderAdminList(){
   // update video select
   const sel=document.getElementById('ytProp');
   if(sel)sel.innerHTML=props.map(p=>`<option value="${p.id}">${p.title}</option>`).join('');
+  // update tour 360 select
+  const selT=document.getElementById('t360Prop');
+  if(selT){
+    const prevVal = selT.value;
+    selT.innerHTML='<option value="">— Selecciona —</option>'+props.map(p=>`<option value="${p.id}">${p.title}</option>`).join('');
+    if(prevVal) selT.value = prevVal;
+  }
   updateStats();
   // Refresh gallery tab
   const gg = document.getElementById('adminGalleryGrid');
@@ -1068,6 +1126,235 @@ function previewVideo(){
   badge.style.background = vertical ? 'rgba(212,168,67,.2)' : 'rgba(255,255,255,.15)';
   badge.style.color = vertical ? 'var(--dorado)' : 'rgba(255,255,255,.8)';
   box.innerHTML = videoPlayerHtml(raw);
+}
+
+// ── TOUR 360° (público) ──────────────────────────────────────────────────
+let publicTourViewer = null;
+function openTourModal(){
+  if(!currentModalProp || !(currentModalProp.tour360||[]).length) return;
+  const scenes = currentModalProp.tour360;
+  const scenesObj = {};
+  scenes.forEach(s=>{
+    scenesObj[s.id] = {
+      type:'equirectangular',
+      panorama: s.image,
+      hotSpots: (s.hotspots||[]).map(h=>({pitch:h.pitch, yaw:h.yaw, type:'scene', text:h.label||'', sceneId:h.target, cssClass:'t360-hotspot-marker'}))
+    };
+  });
+  document.getElementById('tour360Modal').style.display='block';
+  document.body.style.overflow='hidden';
+  const container = document.getElementById('tour360PublicViewer');
+  container.innerHTML='';
+  publicTourViewer = pannellum.viewer('tour360PublicViewer', {
+    default:{ firstScene: scenes[0].id, sceneFadeDuration: 800, autoLoad:true },
+    scenes: scenesObj
+  });
+}
+function closeTourModal(){
+  document.getElementById('tour360Modal').style.display='none';
+  document.body.style.overflow='';
+  if(publicTourViewer){ try{publicTourViewer.destroy();}catch(e){} publicTourViewer=null; }
+}
+
+// ── TOUR 360° (panel de administrador) ───────────────────────────────────
+let tour360Scenes = [], tour360PropId = null, editingSceneId = null, hotspotAddMode = false, pendingHotspot = null, editorViewer = null, t360ClickHandler = null;
+
+function loadTour360Panel(){
+  const propId = parseInt(document.getElementById('t360Prop').value);
+  closeTour360Editor();
+  if(!propId){
+    document.getElementById('t360Content').style.display='none';
+    document.getElementById('t360Empty').style.display='block';
+    tour360PropId = null; tour360Scenes = [];
+    return;
+  }
+  const prop = props.find(p=>p.id===propId);
+  tour360PropId = propId;
+  tour360Scenes = JSON.parse(JSON.stringify((prop && prop.tour360) || []));
+  document.getElementById('t360Empty').style.display='none';
+  document.getElementById('t360Content').style.display='block';
+  renderT360SceneList();
+}
+
+async function uploadTour360Photos(input){
+  const files = Array.from(input.files);
+  if(!files.length) return;
+  toast('⏳ Subiendo foto(s) 360°...','');
+  for(const file of files){
+    if(file.size > 15*1024*1024){ toast('⚠️ '+file.name+' muy grande (máx 15 MB)','error'); continue; }
+    const url = await uploadSinglePhoto(file);
+    if(!url){ toast('⚠️ Error subiendo '+file.name,'error'); continue; }
+    tour360Scenes.push({ id:'t'+Date.now()+Math.random().toString(36).slice(2,6), name:'Escena '+(tour360Scenes.length+1), image:url, hotspots:[] });
+  }
+  input.value='';
+  renderT360SceneList();
+  toast('✅ Foto(s) 360° subida(s). No olvides guardar el tour.','success');
+}
+
+function renderT360SceneList(){
+  const el = document.getElementById('t360SceneList');
+  if(!tour360Scenes.length){ el.innerHTML = '<div style="color:rgba(255,255,255,.4);font-size:.85rem;padding:.5rem">Aún no hay fotos 360° para esta propiedad.</div>'; return; }
+  el.innerHTML = tour360Scenes.map(s=>`
+    <div class="prop-admin-row">
+      <div class="prop-admin-left">
+        <img class="t360-scene-thumb" src="${s.image}" alt=""/>
+        <div class="prop-admin-info"><strong>${s.name}</strong><span>${(s.hotspots||[]).length} punto(s) de conexión</span></div>
+      </div>
+      <div class="prop-admin-actions">
+        <button type="button" class="btn-edit" onclick="renameScene('${s.id}')">✏️ Nombre</button>
+        <button type="button" class="btn-edit" onclick="openTour360Editor('${s.id}')">🔗 Editar puntos</button>
+        <button type="button" class="btn-del" onclick="deleteScene('${s.id}')">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function renameScene(id){
+  const scene = tour360Scenes.find(s=>s.id===id);
+  if(!scene) return;
+  const name = prompt('Nombre de la escena:', scene.name);
+  if(name && name.trim()){
+    scene.name = name.trim();
+    renderT360SceneList();
+    if(editingSceneId===id) document.getElementById('t360EditorTitle').textContent = 'Editando: '+scene.name;
+  }
+}
+
+function deleteScene(id){
+  if(!confirm('¿Eliminar esta escena 360°? También se eliminarán los puntos que conecten hacia ella.')) return;
+  tour360Scenes = tour360Scenes.filter(s=>s.id!==id);
+  tour360Scenes.forEach(s=>{ s.hotspots = (s.hotspots||[]).filter(h=>h.target!==id); });
+  if(editingSceneId===id) closeTour360Editor();
+  renderT360SceneList();
+}
+
+function initT360EditorViewer(scene){
+  const container = document.getElementById('t360Viewer');
+  if(editorViewer){ try{editorViewer.destroy();}catch(e){} editorViewer=null; }
+  container.innerHTML='';
+  editorViewer = pannellum.viewer('t360Viewer', {
+    type:'equirectangular',
+    panorama: scene.image,
+    autoLoad:true,
+    showControls:true,
+    compass:false,
+    hotSpots: (scene.hotspots||[]).map(h=>({pitch:h.pitch, yaw:h.yaw, type:'info', text:'🔗 '+(h.label||'Conexión'), cssClass:'t360-hotspot-marker'}))
+  });
+  if(t360ClickHandler) container.removeEventListener('click', t360ClickHandler);
+  t360ClickHandler = function(e){
+    if(!hotspotAddMode || !editorViewer) return;
+    if(e.target.closest && e.target.closest('.pnlm-controls-container')) return;
+    const coords = editorViewer.mouseEventToCoords(e);
+    pendingHotspot = { pitch: coords[0], yaw: coords[1] };
+    renderPendingHotspotForm();
+  };
+  container.addEventListener('click', t360ClickHandler);
+}
+
+function openTour360Editor(sceneId){
+  const scene = tour360Scenes.find(s=>s.id===sceneId);
+  if(!scene) return;
+  editingSceneId = sceneId;
+  document.getElementById('t360Editor').style.display='block';
+  document.getElementById('t360EditorTitle').textContent = 'Editando: '+scene.name;
+  hotspotAddMode = false;
+  pendingHotspot = null;
+  document.getElementById('t360Hint').style.display='none';
+  document.getElementById('t360PendingForm').innerHTML='';
+  document.getElementById('t360AddPointBtn').textContent = '➕ Agregar punto de conexión';
+  initT360EditorViewer(scene);
+  renderT360HotspotList();
+  document.getElementById('t360Editor').scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function closeTour360Editor(){
+  editingSceneId = null;
+  hotspotAddMode = false;
+  pendingHotspot = null;
+  if(editorViewer){ try{editorViewer.destroy();}catch(e){} editorViewer=null; }
+  const ed = document.getElementById('t360Editor');
+  if(ed) ed.style.display='none';
+}
+
+function toggleAddHotspotMode(){
+  if(!editingSceneId) return;
+  hotspotAddMode = !hotspotAddMode;
+  document.getElementById('t360Hint').style.display = hotspotAddMode ? 'block' : 'none';
+  document.getElementById('t360AddPointBtn').textContent = hotspotAddMode ? '✖️ Cancelar' : '➕ Agregar punto de conexión';
+}
+
+function renderPendingHotspotForm(){
+  const others = tour360Scenes.filter(s=>s.id!==editingSceneId);
+  const wrap = document.getElementById('t360PendingForm');
+  if(!others.length){
+    toast('⚠️ Necesitas al menos otra escena 360° para conectar un punto.','error');
+    pendingHotspot = null;
+    return;
+  }
+  wrap.innerHTML = `
+    <div style="background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.3);border-radius:var(--r-sm);padding:.8rem;margin-bottom:.8rem">
+      <label style="color:white;font-size:.8rem;font-weight:600;display:block;margin-bottom:.3rem">¿A qué escena conecta este punto?</label>
+      <select id="t360TargetScene" style="width:100%;margin-bottom:.5rem">
+        ${others.map(s=>`<option value="${s.id}">${s.name}</option>`).join('')}
+      </select>
+      <label style="color:white;font-size:.8rem;font-weight:600;display:block;margin-bottom:.3rem">Texto (opcional)</label>
+      <input type="text" id="t360HotspotLabel" placeholder="Ir a la cocina" style="width:100%;margin-bottom:.6rem"/>
+      <div style="display:flex;gap:.5rem">
+        <button type="button" class="btn btn-gold" onclick="confirmPendingHotspot()">✅ Guardar punto</button>
+        <button type="button" class="btn-del" onclick="cancelPendingHotspot()">Cancelar</button>
+      </div>
+    </div>`;
+}
+
+function confirmPendingHotspot(){
+  if(!pendingHotspot) return;
+  const targetId = document.getElementById('t360TargetScene').value;
+  const targetScene = tour360Scenes.find(s=>s.id===targetId);
+  const label = document.getElementById('t360HotspotLabel').value.trim() || ('Ir a '+(targetScene?targetScene.name:''));
+  const scene = tour360Scenes.find(s=>s.id===editingSceneId);
+  scene.hotspots = scene.hotspots || [];
+  scene.hotspots.push({ pitch:pendingHotspot.pitch, yaw:pendingHotspot.yaw, target:targetId, label });
+  pendingHotspot = null;
+  document.getElementById('t360PendingForm').innerHTML='';
+  hotspotAddMode = false;
+  document.getElementById('t360Hint').style.display='none';
+  document.getElementById('t360AddPointBtn').textContent = '➕ Agregar punto de conexión';
+  initT360EditorViewer(scene);
+  renderT360HotspotList();
+  renderT360SceneList();
+  toast('✅ Punto agregado. No olvides guardar el tour.','success');
+}
+
+function cancelPendingHotspot(){
+  pendingHotspot = null;
+  document.getElementById('t360PendingForm').innerHTML='';
+}
+
+function renderT360HotspotList(){
+  const scene = tour360Scenes.find(s=>s.id===editingSceneId);
+  const list = document.getElementById('t360HotspotList');
+  if(!scene || !(scene.hotspots||[]).length){ list.innerHTML = '<div style="color:rgba(255,255,255,.4);font-size:.8rem">Sin puntos de conexión todavía.</div>'; return; }
+  list.innerHTML = scene.hotspots.map((h,i)=>{
+    const target = tour360Scenes.find(s=>s.id===h.target);
+    return `<div class="t360-hotspot-row"><span>🔗 ${h.label} ${target?('→ '+target.name):'(escena eliminada)'}</span><button type="button" class="btn-del" onclick="deleteHotspot(${i})">✕</button></div>`;
+  }).join('');
+}
+
+function deleteHotspot(index){
+  const scene = tour360Scenes.find(s=>s.id===editingSceneId);
+  if(!scene) return;
+  scene.hotspots.splice(index,1);
+  initT360EditorViewer(scene);
+  renderT360HotspotList();
+  renderT360SceneList();
+}
+
+async function saveTour360(){
+  if(!tour360PropId){ toast('⚠️ Selecciona una propiedad primero','error'); return; }
+  toast('⏳ Guardando tour 360°...','');
+  const ok = await dbUpdate(tour360PropId, {tour360: tour360Scenes});
+  const prop = props.find(p=>p.id===tour360PropId);
+  if(prop) prop.tour360 = JSON.parse(JSON.stringify(tour360Scenes));
+  toast(ok ? '✅ Tour 360° guardado.' : '❌ Error al guardar. Revisa tu conexión.', ok ? 'success' : 'error');
 }
 
 // ── EMPRESA ──────────────────────────────────────────────────────────────
@@ -1317,7 +1604,8 @@ async function loadFromDB() {
     props = data.map(r => ({
       id:r.id, title:r.title, location:r.location, price:r.price,
       beds:r.beds||0, baths:r.baths||0, area:r.area||0,
-      features:r.features||[], image:r.image||'', images:r.images||[], video:r.video||'', type:r.type||'Venta'
+      features:r.features||[], image:r.image||'', images:r.images||[], video:r.video||'', type:r.type||'Venta',
+      tour360:r.tour360||[]
     }));
     renderProps(props); renderMedia(props); renderAdminList(); updateStats();
     console.log('✅ '+props.length+' propiedades cargadas desde Supabase');
@@ -1376,8 +1664,12 @@ function removeFotoItem(btn) {
 // ── MODAL ─────────────────────────────────────────────────────────────
 let modalImgs = [], modalIdx = 0;
 
+let currentModalProp = null;
 function openModal(id) {
   const p = props.find(x=>x.id===id); if(!p) return;
+  currentModalProp = p;
+  const tourBtn = document.getElementById('modalTour360');
+  if(tourBtn) tourBtn.style.display = (p.tour360 && p.tour360.length) ? 'flex' : 'none';
   const allImgs = [p.image,...(p.images||[])].filter(Boolean);
   modalImgs = allImgs; modalIdx = 0;
 
