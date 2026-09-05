@@ -846,7 +846,8 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
 function toast(msg,type=''){
   const t=document.getElementById('toast');
   t.textContent=msg;t.className='toast '+(type||'');t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),3500);
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove('show'), type==='error' ? 6000 : 3500);
 }
 
 // ── MOBILE MENU ──────────────────────────────────────────────────────────
@@ -1759,10 +1760,12 @@ async function uploadPropPhotos(input) {
   const extraInput = document.getElementById('f_images_extra');
   const existing = extraInput.value ? JSON.parse(extraInput.value) : [];
 
+  let successCount = 0, failCount = 0;
   for (const file of files) {
-    if (file.size > 5*1024*1024) { toast('⚠️ '+file.name+' muy grande (máx 5 MB)','error'); continue; }
+    if (file.size > 5*1024*1024) { toast('⚠️ '+file.name+' muy grande (máx 5 MB)','error'); failCount++; continue; }
     const url = await uploadSinglePhoto(file);
-    if (!url) { toast('⚠️ Error subiendo '+file.name,'error'); continue; }
+    if (!url) { failCount++; continue; }
+    successCount++;
     if (!document.getElementById('f_image').value) document.getElementById('f_image').value = url;
     existing.push(url);
     const div = document.createElement('div');
@@ -1771,8 +1774,15 @@ async function uploadPropPhotos(input) {
     prev.appendChild(div);
   }
   extraInput.value = JSON.stringify(existing);
-  toast('✅ Fotos subidas correctamente.','success');
   input.value = '';
+
+  if (successCount && !failCount) {
+    toast('✅ '+successCount+' foto(s) subida(s) correctamente.','success');
+  } else if (successCount && failCount) {
+    toast('⚠️ '+successCount+' foto(s) subida(s), '+failCount+' fallaron. Revisa e intenta de nuevo con las que fallaron.','error');
+  } else {
+    toast('❌ No se pudo subir ninguna foto. Si acabas de iniciar sesión hace rato, cierra sesión y vuelve a entrar al panel, luego intenta de nuevo.','error');
+  }
 }
 
 function removeFotoItem(btn) {
