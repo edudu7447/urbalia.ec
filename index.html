@@ -1140,6 +1140,18 @@ function previewVideo(){
 function isValidHotspotCoord(h){
   return h && typeof h.pitch==='number' && typeof h.yaw==='number' && !isNaN(h.pitch) && !isNaN(h.yaw);
 }
+function isValidNum(n){ return typeof n==='number' && !isNaN(n); }
+// Lee la orientación actual de la cámara del visor, pero solo si la librería
+// ya terminó de inicializar (a veces devuelve null por un instante) — así
+// nunca contaminamos la siguiente carga con una vista inválida.
+function safeGetView(viewer){
+  if(!viewer) return null;
+  try{
+    const yaw = viewer.getYaw(), pitch = viewer.getPitch(), hfov = viewer.getHfov();
+    if(!isValidNum(yaw) || !isValidNum(pitch) || !isValidNum(hfov)) return null;
+    return { yaw, pitch, hfov };
+  }catch(e){ return null; }
+}
 function t360MarkerRenderer(hotSpotDiv, args){
   hotSpotDiv.classList.add('t360-hotspot-marker');
   hotSpotDiv.style.position = 'relative';
@@ -1252,18 +1264,25 @@ function deleteScene(id){
   renderT360SceneList();
 }
 
-function initT360EditorViewer(scene){
+function initT360EditorViewer(scene, keepView){
   const container = document.getElementById('t360Viewer');
+  // Si ya había un visor abierto, conservamos hacia dónde estaba mirando la
+  // cámara para que, al agregar un punto, la vista no "salte" de regreso al
+  // centro (eso hacía parecer que el punto se movía de lugar).
+  let view = keepView || null;
+  if(!view && editorViewer){
+    view = safeGetView(editorViewer);
+  }
   if(editorViewer){ try{editorViewer.destroy();}catch(e){} editorViewer=null; }
   container.innerHTML='';
-  editorViewer = pannellum.viewer('t360Viewer', {
+  editorViewer = pannellum.viewer('t360Viewer', Object.assign({
     type:'equirectangular',
     panorama: scene.image,
     autoLoad:true,
     showControls:true,
     compass:false,
     hotSpots: (scene.hotspots||[]).filter(isValidHotspotCoord).map(h=>({pitch:h.pitch, yaw:h.yaw, type:'info', text:h.label||'Conexión', cssClass:'t360-hotspot-marker', createTooltipFunc:t360MarkerRenderer, createTooltipArgs:{label:h.label||'Conexión', clickable:false}}))
-  });
+  }, view || {}));
   if(t360ClickHandler) container.removeEventListener('click', t360ClickHandler);
   t360ClickHandler = function(e){
     if(!hotspotAddMode || !editorViewer) return;
@@ -1274,6 +1293,12 @@ function initT360EditorViewer(scene){
       return;
     }
     pendingHotspot = { pitch: coords[0], yaw: coords[1] };
+    // Mostramos el punto de inmediato (antes de elegir a qué escena conecta)
+    // para que se vea exactamente dónde quedó marcado.
+    try{
+      editorViewer.removeHotSpot('t360-pending-preview');
+      editorViewer.addHotSpot({ id:'t360-pending-preview', pitch:coords[0], yaw:coords[1], cssClass:'t360-hotspot-marker', createTooltipFunc:t360MarkerRenderer, createTooltipArgs:{label:'Nuevo punto (sin guardar)', clickable:false} });
+    }catch(err){}
     renderPendingHotspotForm();
   };
   container.addEventListener('click', t360ClickHandler);
@@ -1313,6 +1338,7 @@ function toggleAddHotspotMode(){
   hotspotAddMode = !hotspotAddMode;
   document.getElementById('t360Hint').style.display = hotspotAddMode ? 'block' : 'none';
   document.getElementById('t360AddPointBtn').textContent = hotspotAddMode ? '✖️ Cancelar' : '➕ Agregar punto de conexión';
+  if(!hotspotAddMode) cancelPendingHotspot();
 }
 
 function renderPendingHotspotForm(){
@@ -1331,6 +1357,9 @@ function renderPendingHotspotForm(){
       </select>
       <label style="color:white;font-size:.8rem;font-weight:600;display:block;margin-bottom:.3rem">Texto (opcional)</label>
       <input type="text" id="t360HotspotLabel" placeholder="Ir a la cocina" style="width:100%;margin-bottom:.6rem"/>
+      <label style="color:rgba(255,255,255,.85);font-size:.8rem;display:flex;align-items:center;gap:.4rem;margin-bottom:.6rem;cursor:pointer">
+        <input type="checkbox" id="t360AutoReturn" checked style="width:auto"/> Crear también el punto de regreso automáticamente
+      </label>
       <div style="display:flex;gap:.5rem">
         <button type="button" class="btn btn-gold" onclick="confirmPendingHotspot()">✅ Guardar punto</button>
         <button type="button" class="btn-del" onclick="cancelPendingHotspot()">Cancelar</button>
@@ -1344,24 +1373,39 @@ function confirmPendingHotspot(){
   const targetId = document.getElementById('t360TargetScene').value;
   const targetScene = tour360Scenes.find(s=>s.id===targetId);
   const label = document.getElementById('t360HotspotLabel').value.trim() || ('Ir a '+(targetScene?targetScene.name:''));
+  const autoReturn = document.getElementById('t360AutoReturn') ? document.getElementById('t360AutoReturn').checked : false;
   const scene = tour360Scenes.find(s=>s.id===editingSceneId);
+  const viewBeforeSave = safeGetView(editorViewer);
   scene.hotspots = scene.hotspots || [];
   scene.hotspots.push({ pitch:pendingHotspot.pitch, yaw:pendingHotspot.yaw, target:targetId, label });
+
+  if(autoReturn && targetScene){
+    // No sabemos hacia dónde va a mirar el usuario en la otra foto, así que
+    // colocamos el punto de regreso en la dirección opuesta como estimado
+    // razonable — se puede borrar y volver a colocar a mano si no calza bien.
+    targetScene.hotspots = targetScene.hotspots || [];
+    const alreadyReturns = targetScene.hotspots.some(h=>h.target===editingSceneId);
+    if(!alreadyReturns){
+      targetScene.hotspots.push({ pitch:pendingHotspot.pitch, yaw:pendingHotspot.yaw+180, target:editingSceneId, label:'Volver a '+scene.name });
+    }
+  }
+
   pendingHotspot = null;
   document.getElementById('t360PendingForm').innerHTML='';
   hotspotAddMode = false;
   document.getElementById('t360Hint').style.display='none';
   document.getElementById('t360AddPointBtn').textContent = '➕ Agregar punto de conexión';
-  initT360EditorViewer(scene);
+  initT360EditorViewer(scene, viewBeforeSave);
   renderT360HotspotList();
   renderT360SceneList();
   document.getElementById('t360Viewer').scrollIntoView({behavior:'smooth', block:'center'});
-  toast('✅ Punto agregado — ya lo ves marcado en dorado en la foto. No olvides guardar el tour.','success');
+  toast(autoReturn ? '✅ Punto agregado en ambos sentidos. No olvides guardar el tour.' : '✅ Punto agregado — ya lo ves marcado en dorado en la foto. No olvides guardar el tour.', 'success');
 }
 
 function cancelPendingHotspot(){
   pendingHotspot = null;
   document.getElementById('t360PendingForm').innerHTML='';
+  if(editorViewer){ try{ editorViewer.removeHotSpot('t360-pending-preview'); }catch(e){} }
 }
 
 function renderT360HotspotList(){
