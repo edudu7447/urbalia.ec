@@ -1137,6 +1137,9 @@ function previewVideo(){
 // Dibuja los puntos de conexión del tour 360° como un círculo dorado grande
 // con etiqueta de texto siempre visible (el ícono por defecto de Pannellum
 // es pequeño y se pierde en fotos con cielo/paisaje).
+function isValidHotspotCoord(h){
+  return h && typeof h.pitch==='number' && typeof h.yaw==='number' && !isNaN(h.pitch) && !isNaN(h.yaw);
+}
 function t360MarkerRenderer(hotSpotDiv, args){
   hotSpotDiv.classList.add('t360-hotspot-marker');
   hotSpotDiv.style.position = 'relative';
@@ -1160,7 +1163,7 @@ function openTourModal(){
     scenesObj[s.id] = {
       type:'equirectangular',
       panorama: s.image,
-      hotSpots: (s.hotspots||[]).map(h=>({pitch:h.pitch, yaw:h.yaw, cssClass:'t360-hotspot-marker', createTooltipFunc:t360MarkerRenderer, createTooltipArgs:{label:h.label||'', clickable:true, onClick:()=>{ if(publicTourViewer) publicTourViewer.loadScene(h.target); }}}))
+      hotSpots: (s.hotspots||[]).filter(isValidHotspotCoord).map(h=>({pitch:h.pitch, yaw:h.yaw, cssClass:'t360-hotspot-marker', createTooltipFunc:t360MarkerRenderer, createTooltipArgs:{label:h.label||'', clickable:true, onClick:()=>{ if(publicTourViewer) publicTourViewer.loadScene(h.target); }}}))
     };
   });
   document.getElementById('tour360Modal').style.display='block';
@@ -1259,13 +1262,17 @@ function initT360EditorViewer(scene){
     autoLoad:true,
     showControls:true,
     compass:false,
-    hotSpots: (scene.hotspots||[]).map(h=>({pitch:h.pitch, yaw:h.yaw, type:'info', text:h.label||'Conexión', cssClass:'t360-hotspot-marker', createTooltipFunc:t360MarkerRenderer, createTooltipArgs:{label:h.label||'Conexión', clickable:false}}))
+    hotSpots: (scene.hotspots||[]).filter(isValidHotspotCoord).map(h=>({pitch:h.pitch, yaw:h.yaw, type:'info', text:h.label||'Conexión', cssClass:'t360-hotspot-marker', createTooltipFunc:t360MarkerRenderer, createTooltipArgs:{label:h.label||'Conexión', clickable:false}}))
   });
   if(t360ClickHandler) container.removeEventListener('click', t360ClickHandler);
   t360ClickHandler = function(e){
     if(!hotspotAddMode || !editorViewer) return;
     if(e.target.closest && e.target.closest('.pnlm-controls-container')) return;
     const coords = editorViewer.mouseEventToCoords(e);
+    if(!coords || typeof coords[0]!=='number' || typeof coords[1]!=='number' || isNaN(coords[0]) || isNaN(coords[1])){
+      toast('⚠️ Espera a que la foto termine de cargar por completo antes de agregar el punto.','error');
+      return;
+    }
     pendingHotspot = { pitch: coords[0], yaw: coords[1] };
     renderPendingHotspotForm();
   };
@@ -1299,6 +1306,10 @@ function closeTour360Editor(){
 
 function toggleAddHotspotMode(){
   if(!editingSceneId) return;
+  if(!hotspotAddMode && tour360Scenes.filter(s=>s.id!==editingSceneId).length===0){
+    toast('⚠️ Sube al menos otra foto 360° antes de poder conectar un punto.','error');
+    return;
+  }
   hotspotAddMode = !hotspotAddMode;
   document.getElementById('t360Hint').style.display = hotspotAddMode ? 'block' : 'none';
   document.getElementById('t360AddPointBtn').textContent = hotspotAddMode ? '✖️ Cancelar' : '➕ Agregar punto de conexión';
@@ -1325,6 +1336,7 @@ function renderPendingHotspotForm(){
         <button type="button" class="btn-del" onclick="cancelPendingHotspot()">Cancelar</button>
       </div>
     </div>`;
+  wrap.scrollIntoView({behavior:'smooth', block:'center'});
 }
 
 function confirmPendingHotspot(){
@@ -1343,7 +1355,8 @@ function confirmPendingHotspot(){
   initT360EditorViewer(scene);
   renderT360HotspotList();
   renderT360SceneList();
-  toast('✅ Punto agregado. No olvides guardar el tour.','success');
+  document.getElementById('t360Viewer').scrollIntoView({behavior:'smooth', block:'center'});
+  toast('✅ Punto agregado — ya lo ves marcado en dorado en la foto. No olvides guardar el tour.','success');
 }
 
 function cancelPendingHotspot(){
@@ -1357,7 +1370,9 @@ function renderT360HotspotList(){
   if(!scene || !(scene.hotspots||[]).length){ list.innerHTML = '<div style="color:rgba(255,255,255,.4);font-size:.8rem">Sin puntos de conexión todavía.</div>'; return; }
   list.innerHTML = scene.hotspots.map((h,i)=>{
     const target = tour360Scenes.find(s=>s.id===h.target);
-    return `<div class="t360-hotspot-row"><span>🔗 ${h.label} ${target?('→ '+target.name):'(escena eliminada)'}</span><button type="button" class="btn-del" onclick="deleteHotspot(${i})">✕</button></div>`;
+    const invalid = !isValidHotspotCoord(h);
+    const label = invalid ? '⚠️ Punto inválido (bórralo y créalo de nuevo)' : `🔗 ${h.label} ${target?('→ '+target.name):'(escena eliminada)'}`;
+    return `<div class="t360-hotspot-row"${invalid?' style="color:#fca5a5"':''}><span>${label}</span><button type="button" class="btn-del" onclick="deleteHotspot(${i})">✕</button></div>`;
   }).join('');
 }
 
