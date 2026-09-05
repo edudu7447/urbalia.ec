@@ -1245,7 +1245,7 @@ async function uploadTour360Photos(input){
   if(!files.length) return;
   toast('⏳ Subiendo foto(s) 360°...','');
   for(const file of files){
-    if(file.size > 30*1024*1024){ toast('⚠️ '+file.name+' muy grande (máx 30 MB)','error'); continue; }
+    if(file.size > 50*1024*1024){ toast('⚠️ '+file.name+' muy grande (máx 50 MB)','error'); continue; }
     const url = await uploadSinglePhoto(file);
     if(!url){ toast('⚠️ Error subiendo '+file.name,'error'); continue; }
     tour360Scenes.push({ id:'t'+Date.now()+Math.random().toString(36).slice(2,6), name:'Escena '+(tour360Scenes.length+1), image:url, hotspots:[] });
@@ -1743,13 +1743,24 @@ async function uploadSinglePhoto(file) {
   const ext = file.name.split('.').pop();
   const name = Date.now() + '_' + Math.random().toString(36).substr(2,5) + '.' + ext;
   const STORAGE_URL = 'https://ykohqoqamysunuhoiwcq.supabase.co/storage/v1/object/propiedades/' + name;
-  const r = await fetch(STORAGE_URL, {
-    method:'POST',
-    headers: writeHeaders({'Content-Type':file.type}),
-    body:file
-  });
-  if (!r.ok) { console.error('Upload error:', await r.text()); return null; }
-  return 'https://ykohqoqamysunuhoiwcq.supabase.co/storage/v1/object/public/propiedades/' + name;
+  try {
+    const r = await fetch(STORAGE_URL, {
+      method:'POST',
+      headers: writeHeaders({'Content-Type':file.type}),
+      body:file
+    });
+    if (!r.ok) {
+      const errText = await r.text().catch(()=> '');
+      console.error('Upload error ('+file.name+'):', r.status, errText);
+      toast('❌ '+file.name+' — servidor rechazó la foto (código '+r.status+').','error');
+      return null;
+    }
+    return 'https://ykohqoqamysunuhoiwcq.supabase.co/storage/v1/object/public/propiedades/' + name;
+  } catch(e) {
+    console.error('Upload network error ('+file.name+'):', e.message);
+    toast('❌ '+file.name+' — se cortó la conexión al subirla (puede ser muy pesada para tu internet).','error');
+    return null;
+  }
 }
 
 async function uploadPropPhotos(input) {
@@ -1758,11 +1769,13 @@ async function uploadPropPhotos(input) {
   toast('⏳ Subiendo '+files.length+' foto(s)...','');
   const prev = document.getElementById('fotoPreviewProp');
   const extraInput = document.getElementById('f_images_extra');
-  const existing = extraInput.value ? JSON.parse(extraInput.value) : [];
+  let existing = [];
+  try { existing = extraInput.value ? JSON.parse(extraInput.value) : []; }
+  catch(e) { console.error('f_images_extra tenía datos corruptos, se reinició:', extraInput.value); existing = []; }
 
   let successCount = 0, failCount = 0;
   for (const file of files) {
-    if (file.size > 30*1024*1024) { toast('⚠️ '+file.name+' muy grande (máx 30 MB)','error'); failCount++; continue; }
+    if (file.size > 50*1024*1024) { toast('⚠️ '+file.name+' muy grande (máx 50 MB)','error'); failCount++; continue; }
     const url = await uploadSinglePhoto(file);
     if (!url) { failCount++; continue; }
     successCount++;
