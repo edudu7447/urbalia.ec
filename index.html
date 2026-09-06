@@ -20,6 +20,27 @@
   --r:16px;--r-sm:10px;--r-full:9999px;
   --t:200ms cubic-bezier(.16,1,.3,1);
 }
+/* Modo oscuro — solo cambia las superficies neutras (fondos y texto),
+   el azul/dorado de marca se mantiene igual para no perder identidad. */
+body[data-theme="dark"]{
+  --azul-claro:#1a2350;--neutro:#0a112e;--texto:#e8ecf7;
+  --blanco:#141b3d;--gris:#9aa8c7;
+}
+body[data-theme="dark"] #topbar{background:#0a112e;border-bottom-color:rgba(255,255,255,.1)}
+/* El modal de detalle de propiedad y el popup del mapa se quedan siempre
+   claros (como una tarjeta flotando sobre la página) — solo cambiamos los
+   textos de las secciones normales, que sí se apoyan en el fondo oscuro. */
+body[data-theme="dark"] h1,
+body[data-theme="dark"] .sec-head h2,body[data-theme="dark"] .srv-card h3,
+body[data-theme="dark"] .prop-price,body[data-theme="dark"] .canton-name,
+body[data-theme="dark"] .cstat strong,body[data-theme="dark"] .canton-panel>h3,
+body[data-theme="dark"] .nos-card h3,body[data-theme="dark"] .prop-body h3{color:#e8ecf7!important}
+body[data-theme="dark"] .prop-img{background:linear-gradient(135deg,#1a2350,#232d5e)}
+body[data-theme="dark"] .chips li{background:var(--blanco);color:#e8ecf7;border-color:rgba(255,255,255,.12)}
+body[data-theme="dark"] .mobile-nav{background:var(--blanco)}
+body[data-theme="dark"] .hero{background:linear-gradient(150deg,#0a112e,#0f1838 50%,#0a112e)}
+.theme-toggle{width:38px;height:38px;border-radius:50%;background:var(--azul-claro);display:flex;align-items:center;justify-content:center;font-size:1.05rem;transition:background var(--t)}
+.theme-toggle:hover{background:var(--dorado)}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:'Montserrat',sans-serif;color:var(--texto);background:var(--neutro);line-height:1.65}
@@ -203,7 +224,7 @@ h1{font-size:clamp(2.3rem,4.5vw,4.5rem);font-weight:900;margin-bottom:1rem;color
 .t360-hotspot-row{background:rgba(255,255,255,.06);border-radius:var(--r-sm);padding:.5rem .8rem;display:flex;justify-content:space-between;align-items:center;font-size:.8rem;color:rgba(255,255,255,.8)}
 /* Marcador grande y visible para los puntos de conexión del tour 360° */
 .pnlm-hotspot.t360-hotspot-marker{width:auto!important;height:auto!important;background:none!important;border:none!important}
-.t360-marker-dot{width:24px;height:24px;border-radius:50%;background:var(--dorado);opacity:.72;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:.68rem;cursor:pointer;animation:t360pulse 2.2s infinite;transition:opacity .15s,transform .15s}
+.t360-marker-dot{position:relative;width:24px;height:24px;border-radius:50%;background:var(--dorado);opacity:.72;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;font-size:.68rem;cursor:pointer;animation:t360pulse 2.2s infinite;transition:opacity .15s,transform .15s}
 .t360-marker-dot:hover{opacity:1;transform:scale(1.15)}
 .t360-marker-dot.static{cursor:default;animation:none;background:rgba(212,168,67,.7)}
 .t360-marker-label{position:absolute;top:30px;left:50%;transform:translateX(-50%);background:rgba(10,17,46,.85);color:#fff;padding:.22rem .6rem;border-radius:999px;font-size:.66rem;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:0 2px 8px rgba(0,0,0,.3)}
@@ -229,6 +250,9 @@ h1{font-size:clamp(2.3rem,4.5vw,4.5rem);font-weight:900;margin-bottom:1rem;color
 .contact-form-card input,.contact-form-card textarea{border:1.5px solid rgba(30,45,111,.14);border-radius:var(--r-sm);padding:.7rem .95rem;font-size:.9rem;width:100%;background:var(--neutro);transition:border-color var(--t)}
 .contact-form-card input:focus,.contact-form-card textarea:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(30,45,111,.1)}
 .wa-float{position:fixed;right:1.1rem;bottom:1.1rem;z-index:200;background:#1fa855;color:white;padding:.7rem 1.1rem;border-radius:var(--r-full);font-weight:700;font-size:.88rem;box-shadow:0 10px 28px rgba(0,0,0,.2);transition:transform var(--t);display:flex;align-items:center;gap:.35rem}
+.back-to-top{position:fixed;left:1.1rem;bottom:1.1rem;z-index:200;width:44px;height:44px;border-radius:50%;background:var(--azul);color:white;font-size:1.2rem;font-weight:800;box-shadow:0 10px 28px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity var(--t),transform var(--t)}
+.back-to-top.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+.back-to-top:hover{background:var(--dorado);color:var(--azul)}
 .wa-float:hover{transform:translateY(-3px)}
 .toast{position:fixed;bottom:4.5rem;right:1.1rem;z-index:300;background:var(--azul);color:white;padding:.85rem 1.3rem;border-radius:var(--r);font-weight:600;font-size:.88rem;box-shadow:var(--sombra-lg);transform:translateY(130%);opacity:0;transition:all .4s cubic-bezier(.16,1,.3,1)}
 .toast.show{transform:translateY(0);opacity:1}
@@ -268,6 +292,10 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
   h1{font-size:2rem}
   .stats-grid{grid-template-columns:repeat(2,1fr)}
   #previewGrid{grid-template-columns:repeat(3,1fr)}
+  /* Controles del visor 360° más grandes y fáciles de tocar en celular */
+  .pnlm-controls-container{transform:scale(1.5);transform-origin:bottom right;margin:0 .6rem .6rem 0}
+  .t360-marker-dot{width:34px;height:34px}
+  .t360-marker-dot::before{content:'';position:absolute;inset:-10px}
 }
 
 /* ── MODAL PROPIEDAD ─────────────────────────────────────────────── */
@@ -425,6 +453,7 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
       <a href="#contacto">Contacto</a>
     </nav>
     <div class="nav-actions">
+      <button type="button" id="themeToggleBtn" class="theme-toggle" onclick="toggleTheme()" title="Cambiar a modo oscuro/claro" aria-label="Cambiar tema">🌙</button>
       <a href="#admin" class="btn-admin btn-sm" style="border-radius:var(--r-full);padding:.5rem 1rem;font-weight:700;font-size:.82rem;display:inline-flex;align-items:center;gap:.3rem">⚙️ Admin</a>
       <a href="#contacto" class="btn-nav">Contactar</a>
       <button class="hamburger" id="menuBtn">☰</button>
@@ -828,6 +857,7 @@ footer{background:#0a112e;color:rgba(255,255,255,.7);padding:1.6rem 0}
 </main>
 
 <a href="https://wa.me/593958826795" id="waBtn" target="_blank" rel="noopener" class="wa-float">💬 WhatsApp</a>
+<button type="button" id="backToTopBtn" class="back-to-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Volver arriba" title="Volver arriba">↑</button>
 <div class="toast" id="toast"></div>
 
 <footer>
@@ -853,6 +883,30 @@ function toast(msg,type=''){
 // ── MOBILE MENU ──────────────────────────────────────────────────────────
 document.getElementById('menuBtn').addEventListener('click',()=>document.getElementById('mobileNav').classList.toggle('open'));
 function closeMobile(){document.getElementById('mobileNav').classList.remove('open');}
+
+// ── BOTÓN VOLVER ARRIBA ──────────────────────────────────────────────────
+window.addEventListener('scroll', ()=>{
+  const btn = document.getElementById('backToTopBtn');
+  if(btn) btn.classList.toggle('show', window.scrollY > 600);
+});
+
+// ── MODO OSCURO/CLARO ────────────────────────────────────────────────────
+function applyTheme(theme){
+  document.body.dataset.theme = theme;
+  const btn = document.getElementById('themeToggleBtn');
+  if(btn) btn.textContent = theme==='dark' ? '☀️' : '🌙';
+}
+function toggleTheme(){
+  const next = document.body.dataset.theme==='dark' ? 'light' : 'dark';
+  applyTheme(next);
+  try{ localStorage.setItem('urbalia_theme', next); }catch(e){}
+}
+(function initTheme(){
+  let saved = null;
+  try{ saved = localStorage.getItem('urbalia_theme'); }catch(e){}
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  applyTheme(saved || (prefersDark ? 'dark' : 'light'));
+})();
 
 // ── DATA ─────────────────────────────────────────────────────────────────
 let props=[];
@@ -1763,10 +1817,41 @@ async function uploadSinglePhoto(file) {
   }
 }
 
+// Reduce una foto a un tamaño razonable para web antes de subirla (más
+// rápido de cargar para los visitantes). No se aplica a las fotos 360°,
+// que necesitan conservar su resolución panorámica.
+function compressImage(file, maxDim, quality){
+  return new Promise((resolve)=>{
+    if(!file.type || !file.type.startsWith('image/') || file.type==='image/gif'){ resolve(file); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      URL.revokeObjectURL(url);
+      let {width, height} = img;
+      if(!width || !height){ resolve(file); return; }
+      if(width > maxDim || height > maxDim){
+        if(width > height){ height = Math.round(height * maxDim/width); width = maxDim; }
+        else { width = Math.round(width * maxDim/height); height = maxDim; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob)=>{
+        if(!blob || blob.size >= file.size){ resolve(file); return; }
+        const newName = file.name.replace(/\.\w+$/, '') + '.jpg';
+        resolve(new File([blob], newName, {type:'image/jpeg'}));
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 async function uploadPropPhotos(input) {
   const files = Array.from(input.files);
   if (!files.length) return;
-  toast('⏳ Subiendo '+files.length+' foto(s)...','');
+  toast('⏳ Optimizando y subiendo '+files.length+' foto(s)...','');
   const prev = document.getElementById('fotoPreviewProp');
   const extraInput = document.getElementById('f_images_extra');
   let existing = [];
@@ -1774,8 +1859,9 @@ async function uploadPropPhotos(input) {
   catch(e) { console.error('f_images_extra tenía datos corruptos, se reinició:', extraInput.value); existing = []; }
 
   let successCount = 0, failCount = 0;
-  for (const file of files) {
+  for (let file of files) {
     if (file.size > 50*1024*1024) { toast('⚠️ '+file.name+' muy grande (máx 50 MB)','error'); failCount++; continue; }
+    file = await compressImage(file, 1920, 0.82);
     const url = await uploadSinglePhoto(file);
     if (!url) { failCount++; continue; }
     successCount++;
@@ -1849,7 +1935,7 @@ function openModal(id) {
     const vs = document.createElement('div');
     vs.id = 'modalVideoSection';
     vs.style.cssText = 'padding:.5rem 1.5rem .75rem;background:#f7f8fa;border-bottom:1px solid rgba(30,45,111,.07);text-align:'+(isVerticalVideo(p.video)?'center':'left');
-    vs.innerHTML = '<div style="font-weight:700;color:#1E2D6F;font-size:.82rem;margin-bottom:.4rem">🎬 VIDEO DE LA PROPIEDAD</div>'+videoPlayerHtml(p.video, ' modal-video');
+    vs.innerHTML = '<div class="dm-navy-text" style="font-weight:700;color:#1E2D6F;font-size:.82rem;margin-bottom:.4rem">🎬 VIDEO DE LA PROPIEDAD</div>'+videoPlayerHtml(p.video, ' modal-video');
     const modalBox = document.getElementById('propModalBox');
     const modalBody = modalBox.querySelector('.modal-body');
     modalBox.insertBefore(vs, modalBody);
